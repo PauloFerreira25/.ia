@@ -12,3 +12,9 @@ Files numbered 01-29 are base conventions. Files numbered 30+ are project-specif
 | # | Name | Scope | File |
 |---|------|-------|------|
 | 01 | Devcontainer | Before changing .devcontainer or docker-compose files | [01-devcontainer.md](01-devcontainer.md) |
+
+## Node.js + TypeScript
+
+| # | Name | Scope | File |
+|---|------|-------|------|
+| 02 | Node.js + TypeScript | Before writing or modifying any Node.js + TypeScript code | [02-nodejs-typescript.md](02-nodejs-typescript.md) |
