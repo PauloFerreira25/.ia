@@ -602,13 +602,13 @@ Each domain follows a fixed file structure:
 
 ```
 domain/<name>/
-├── index.ts              ← exports routes for infra/api.ts
-├── <name>.route.ts       ← route definitions and schema references
-├── <name>.handler.ts     ← receives request, calls service, returns response
-├── <name>.service.ts     ← business logic, orchestration, event publishing
-├── <name>.repository.ts  ← database queries only — no business logic
-├── <name>.schema.ts      ← input/output validation schemas
-└── <name>.type.ts        ← TypeScript interfaces and types
+├── index.ts                          ← exports routes for infra/api.ts
+├── <name>.route.ts                   ← route definitions and schema references
+├── <name>.handler.<function>.ts      ← one file per handler function (see Handler file splitting)
+├── <name>.service.ts                 ← business logic, orchestration, event publishing
+├── <name>.repository.ts              ← database queries only — no business logic
+├── <name>.schema.ts                  ← input/output validation schemas
+└── <name>.type.ts                    ← TypeScript interfaces and types
 ```
 
 Layer rules:
@@ -618,6 +618,52 @@ Layer rules:
 - `service` never imports types from the HTTP framework
 - `repository` never emits events and never contains business logic
 - `schema` never imports from `service` or `repository`
+
+---
+
+## Handler file splitting
+
+Each handler function lives in its own file. Never put more than one handler function in a single file.
+
+**Convention:** `<domain>.handler.<handlerFunctionName>.ts`
+
+```
+domain/tag/
+├── tag.handler.createTag.ts
+├── tag.handler.listTags.ts
+├── tag.handler.findTagById.ts
+├── tag.handler.updateTag.ts
+├── tag.handler.softDeleteTag.ts
+├── tag.handler.restoreTag.ts
+├── tag.handler.addParent.ts
+└── tag.handler.removeParent.ts
+```
+
+**Why this rule exists:**
+
+A single `<domain>.handler.ts` grows unboundedly as the domain adds operations. Splitting by semantic grouping only moves the problem — it requires a judgment call on every new handler: "does this belong in the existing file or a new one?" Both approaches introduce ambiguity over time.
+
+One handler function per file is an absolute rule with no gray area. When adding a handler, there is always exactly one correct file name. When reading code, there is always exactly one place to look. Consistency eliminates the decision.
+
+The naming follows the existing `<domain>.<layer>.<specific>.ts` pattern — `handler` stays in the second segment, keeping all handler files grouped together when sorted alphabetically in a file explorer.
+
+Test files mirror the source structure exactly:
+
+```
+test/domain/tag/
+├── tag.handler.createTag.test.ts
+├── tag.handler.listTags.test.ts
+├── tag.handler.findTagById.test.ts
+├── tag.handler.updateTag.test.ts
+├── tag.handler.softDeleteTag.test.ts
+├── tag.handler.restoreTag.test.ts
+├── tag.handler.addParent.test.ts
+└── tag.handler.removeParent.test.ts
+```
+
+This rule applies to handlers only. `service.ts` and `repository.ts` remain as single files per domain unless there is a concrete, justified reason to split — which must be documented inline.
+
+---
 
 Workers follow the same pattern — replace `route` and `schema` with `consumer`:
 
