@@ -5,6 +5,8 @@ description: "Read before writing or modifying any Node.js + TypeScript code."
 
 # Node.js + TypeScript Architecture
 
+> This document is generic and project-agnostic. It describes architectural best practices and conventions that apply to any Node.js + TypeScript project, regardless of business domain. Examples use placeholder terms (`Entity`, `<domain>`, `<collection>`) — they represent concepts, not real business entities. Business rules, domain names, and project-specific decisions are never defined here.
+
 ## Filosofia
 
 Estas decisões guiam todas as escolhas de arquitetura no projeto:
@@ -35,8 +37,8 @@ Always use ES Modules. Never use CommonJS.
 - Never use `require()`, `module.exports`, or `exports`
 
 ```typescript
-import { findById } from './tag.service.js'
-import type { Tag } from './tag.type.js'
+import { findById } from './entity.service.js'
+import type { Entity } from './entity.type.js'
 ```
 
 ---
@@ -325,12 +327,10 @@ export async function createTestDatabase() {
 ```
 test/
 ├── domain/
-│   ├── tag/
-│   │   ├── tag.handler.test.ts     ← always exists
-│   │   ├── tag.service.test.ts     ← only if handler cannot cover it
-│   │   └── tag.repository.test.ts  ← only if handler cannot cover it
 │   └── <domain>/
-│       └── <domain>.handler.test.ts
+│       ├── <domain>.handler.test.ts     ← always exists
+│       ├── <domain>.service.test.ts     ← only if handler cannot cover it
+│       └── <domain>.repository.test.ts  ← only if handler cannot cover it
 ├── queue/
 │   └── <group>/
 │       └── <worker>.handler.test.ts
@@ -393,6 +393,57 @@ The npm scope signals the audience of the library:
 ```
 
 **`@<project-scope>/*`** — project-specific or business domain libs. Scoped to the project that owns them. Each project defines its own scope.
+
+---
+
+## Type specialization
+
+`@pauloferreira25/commons-types` defines base types that are generic and framework-agnostic. Types are organized by responsibility inside `shared-libs/commons-types/src/` and know nothing about HTTP frameworks or project-specific dependencies:
+
+```
+shared-libs/commons-types/src/
+├── index.ts            ← re-exports everything
+├── params.types.ts     ← IdParams
+└── pagination.types.ts ← PaginationParams, PaginationMeta, PaginationResponse
+```
+
+Each project must create `src/shared/commons/handler.types.ts` to:
+
+1. Re-export the base types from `@pauloferreira25/commons-types` — making it the single import point within the project
+2. Specialize the base types by combining them with the project's own framework types (Fastify, Express, etc.)
+
+```typescript
+// src/shared/commons/handler.types.ts
+import type { IdParams } from '@pauloferreira25/commons-types'
+import type { FastifyReply, FastifyRequest } from 'fastify'
+
+// Re-export base types — everything in the project imports from here
+export type { IdParams, PaginationParams, PaginationMeta, PaginationResponse } from '@pauloferreira25/commons-types'
+
+// Specializations: base types + project-specific framework types
+export interface HandlerBaseParams {
+  request: FastifyRequest
+  reply:   FastifyReply
+}
+
+export interface HandlerIdParams extends HandlerBaseParams, IdParams {}
+
+export interface HandlerCompositionDeleteParams extends HandlerIdParams {
+  parentId: string
+}
+```
+
+Within a project, always import from `src/shared/commons/handler.types.ts`. Never import directly from `@pauloferreira25/commons-types` in domain or handler files — the specialization file is the single source of truth for all types used in the project.
+
+```typescript
+// correct
+import type { IdParams, HandlerIdParams } from '@src/shared/commons/handler.types.js'
+
+// wrong — bypasses the specialization layer
+import type { IdParams } from '@pauloferreira25/commons-types'
+```
+
+The shared-lib stays clean and framework-agnostic. `handler.types.ts` is where project-specific knowledge (Fastify, handler shapes) lives.
 
 ---
 
@@ -495,20 +546,20 @@ The service fails fast on startup if any required variable is missing or invalid
 
 ```typescript
 // repository — returns null, never throws NotFoundError
-async function findById(params: IdParams): Promise<Tag | null> {
+async function findById(params: IdParams): Promise<Entity | null> {
   return db.get(params.id) ?? null
 }
 
 // service — understands the domain, throws when needed
-async function findById(params: IdParams): Promise<Tag> {
-  const tag = await tagRepository.findById(params)
-  if (!tag) throw new NotFoundError('TAG_NOT_FOUND', `Tag ${params.id} not found`)
-  return tag
+async function findById(params: IdParams): Promise<Entity> {
+  const entity = await entityRepository.findById(params)
+  if (!entity) throw new NotFoundError('ENTITY_NOT_FOUND', `Entity ${params.id} not found`)
+  return entity
 }
 
 // handler — clean, no try/catch, no null checks
-async function getTag(params: IdParams): Promise<Tag> {
-  return tagService.findById(params)
+async function findById(params: IdParams): Promise<Entity> {
+  return entityService.findById(params)
 }
 ```
 
@@ -545,9 +596,9 @@ Projects define precise business errors by extending `AppError` — no changes t
 // project-specific error
 import { AppError } from '@pauloferreira25/commons-errors'
 
-export class DataIntegrationError extends AppError {
+export class BusinessRuleError extends AppError {
   constructor(message: string) {
-    super(422, 'DATA_INTEGRATION_ERROR', message)
+    super(422, 'BUSINESS_RULE_ERROR', message)
   }
 }
 ```
@@ -555,7 +606,7 @@ export class DataIntegrationError extends AppError {
 ### HTTP response envelope
 
 ```json
-{ "error": "TAG_NOT_FOUND", "message": "Tag abc-123 not found" }
+{ "error": "ENTITY_NOT_FOUND", "message": "Entity abc-123 not found" }
 ```
 
 - `error` — `UPPER_SNAKE_CASE` code, stable and programmatically comparable
@@ -619,6 +670,40 @@ Layer rules:
 - `repository` never emits events and never contains business logic
 - `schema` never imports from `service` or `repository`
 
+### Repository isolation
+
+The repository owns its infrastructure dependencies — the database connection and collection/table names are internal implementation details. They are never passed in as parameters by the caller.
+
+The repository imports the database client directly from `src/infra/database.ts` and defines collection names as internal constants:
+
+```typescript
+// correct
+import { db } from '@src/infra/database.js'
+
+const COLLECTION = '<collection>'
+
+interface SaveParams { entity: Entity }
+
+export async function save(params: SaveParams): Promise<void> {
+  log.debug({ id: params.entity.id }, 'save')
+  await db.collection(COLLECTION).save(params.entity)
+}
+```
+
+```typescript
+// wrong — service now knows which database and which collection exist
+interface SaveParams {
+  db:     Database
+  entity: Entity
+}
+
+export async function save(params: SaveParams): Promise<void> {
+  await params.db.collection('<collection>').save(params.entity)
+}
+```
+
+If the `service` has to pass `db` to the repository, the repository layer is providing no isolation — the service has taken on the responsibility of knowing where data lives. That defeats the purpose of the layer.
+
 ---
 
 ## Handler file splitting
@@ -628,15 +713,13 @@ Each handler function lives in its own file. Never put more than one handler fun
 **Convention:** `<domain>.handler.<handlerFunctionName>.ts`
 
 ```
-domain/tag/
-├── tag.handler.createTag.ts
-├── tag.handler.listTags.ts
-├── tag.handler.findTagById.ts
-├── tag.handler.updateTag.ts
-├── tag.handler.softDeleteTag.ts
-├── tag.handler.restoreTag.ts
-├── tag.handler.addParent.ts
-└── tag.handler.removeParent.ts
+domain/<name>/
+├── <name>.handler.create.ts
+├── <name>.handler.list.ts
+├── <name>.handler.findById.ts
+├── <name>.handler.update.ts
+├── <name>.handler.delete.ts
+└── <name>.handler.restore.ts
 ```
 
 **Why this rule exists:**
@@ -650,15 +733,13 @@ The naming follows the existing `<domain>.<layer>.<specific>.ts` pattern — `ha
 Test files mirror the source structure exactly:
 
 ```
-test/domain/tag/
-├── tag.handler.createTag.test.ts
-├── tag.handler.listTags.test.ts
-├── tag.handler.findTagById.test.ts
-├── tag.handler.updateTag.test.ts
-├── tag.handler.softDeleteTag.test.ts
-├── tag.handler.restoreTag.test.ts
-├── tag.handler.addParent.test.ts
-└── tag.handler.removeParent.test.ts
+test/domain/<name>/
+├── <name>.handler.create.test.ts
+├── <name>.handler.list.test.ts
+├── <name>.handler.findById.test.ts
+├── <name>.handler.update.test.ts
+├── <name>.handler.delete.test.ts
+└── <name>.handler.restore.test.ts
 ```
 
 This rule applies to handlers only. `service.ts` and `repository.ts` remain as single files per domain unless there is a concrete, justified reason to split — which must be documented inline.
@@ -686,14 +767,14 @@ This ensures callers never break when the function evolves — adding a new fiel
 
 ```typescript
 // correct
-findById(params: IdParams): Promise<Tag>
-find(params: FindTagParams): Promise<Tag[]>
-update(params: UpdateTagParams): Promise<Tag>
+findById(params: IdParams): Promise<Entity>
+find(params: FindEntityParams): Promise<Entity[]>
+update(params: UpdateEntityParams): Promise<Entity>
 delete(params: IdParams): Promise<void>
 
 // wrong
-findById(id: string): Promise<Tag>
-update(id: string, name: string, description: string): Promise<Tag>
+findById(id: string): Promise<Entity>
+update(id: string, name: string, description: string): Promise<Entity>
 ```
 
 `IdParams` comes from the shared-lib `@pauloferreira25/commons-types` — never inline `{ id: string }`:
@@ -701,7 +782,7 @@ update(id: string, name: string, description: string): Promise<Tag>
 ```typescript
 import type { IdParams } from '@pauloferreira25/commons-types'
 
-findById(params: IdParams): Promise<Tag>
+findById(params: IdParams): Promise<Entity>
 ```
 
 Always declare explicit types on function parameters. Always declare return types on exported functions.
@@ -710,13 +791,13 @@ Input types must be explicit interfaces or type aliases — never inline object 
 
 ```typescript
 // correct
-interface FindTagParams {
+interface FindEntityParams {
   pagination?: { cursor?: string; pageSize?: number }
   filter?:     { isActive?: boolean }
 }
 
 // wrong
-find(params: { pagination?: { cursor?: string }; filter?: { isActive?: boolean } }): Promise<Tag[]>
+find(params: { pagination?: { cursor?: string }; filter?: { isActive?: boolean } }): Promise<Entity[]>
 ```
 
 ---
@@ -736,12 +817,12 @@ export const log = pino({ level: config.LOG_LEVEL })
 First line of every function must be a debug log with the function name as the second argument. No exceptions.
 
 ```typescript
-async function findById(params: IdParams): Promise<Tag> {
+async function findById(params: IdParams): Promise<Entity> {
   log.debug({ params }, 'findById')
   // ...
 }
 
-async function find(params: FindTagParams): Promise<Tag[]> {
+async function find(params: FindEntityParams): Promise<Entity[]> {
   log.debug({ params }, 'find')
   // ...
 }
@@ -777,17 +858,17 @@ Never log the full `params` object when it contains sensitive fields.
 
 ```typescript
 // camelCase
-const tagId = params.id
-async function findById(params: IdParams): Promise<Tag> { ... }
+const entityId = params.id
+async function findById(params: IdParams): Promise<Entity> { ... }
 
 // PascalCase
-interface FindTagParams { ... }
-type TagStatus = 'draft' | 'valid' | 'invalid'
+interface FindEntityParams { ... }
+type EntityStatus = 'draft' | 'valid' | 'invalid'
 enum ValidationState { Draft, Valid, Invalid }
 
 // UPPER_SNAKE_CASE
 const DATABASE_URL = config.DATABASE_URL
-throw new NotFoundError('TAG_NOT_FOUND', ...)
+throw new NotFoundError('ENTITY_NOT_FOUND', ...)
 ```
 
 Never use abbreviations. Names must be descriptive and self-explanatory (`user`, not `usr`; `request`, not `req`; `manager`, not `mgr`).
@@ -823,9 +904,9 @@ All code, identifiers, field names, log messages, error codes, queue names, and 
 
 ```typescript
 // correct
-throw new NotFoundError('TAG_NOT_FOUND', `Tag ${id} not found`)
-log.info({ tagId }, 'tagNotFound')
+throw new NotFoundError('ENTITY_NOT_FOUND', `Entity ${id} not found`)
+log.info({ entityId }, 'entityNotFound')
 
 // wrong
-throw new NotFoundError('TAG_NAO_ENCONTRADA', `Tag ${id} não encontrada`)
+throw new NotFoundError('ENTIDADE_NAO_ENCONTRADA', `Entidade ${id} não encontrada`)
 ```
