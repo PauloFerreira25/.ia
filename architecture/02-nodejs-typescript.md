@@ -76,6 +76,91 @@ Never use `"moduleResolution": "node"` — it does not support ESM correctly.
 
 ---
 
+## Path aliases
+
+Use `@src` as an alias for the `src/` directory. This eliminates deep relative imports.
+
+```typescript
+// wrong
+import { config } from '../../../../shared/config.js'
+
+// correct
+import { config } from '@src/shared/config.js'
+```
+
+### tsconfig.json
+
+Add `baseUrl` and `paths` to `compilerOptions`:
+
+```json
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@src/*": ["src/*"]
+    }
+  }
+}
+```
+
+### Runtime resolution
+
+TypeScript compiles path aliases but does not rewrite them in the emitted JavaScript. Use `tsc-alias` to rewrite `@src/*` to relative paths after compilation:
+
+```
+npm install -D tsc-alias
+```
+
+Update the `build` script in `package.json`:
+
+```json
+{
+  "scripts": {
+    "build": "tsc && tsc-alias"
+  }
+}
+```
+
+The `dev` script requires no change — `tsx` resolves path aliases from `tsconfig.json` natively.
+
+### vitest.config.ts
+
+Add `resolve.alias` so Vitest resolves the alias during tests:
+
+```typescript
+import { defineConfig } from 'vitest/config'
+import { resolve } from 'node:path'
+
+export default defineConfig({
+  resolve: {
+    alias: {
+      '@src': resolve(import.meta.dirname, 'src'),
+    },
+  },
+  test: {
+    include: ['test/**/*.test.ts'],
+    coverage: {
+      provider: 'v8',
+      include: ['src/**/*.ts'],
+    },
+  },
+})
+```
+
+### ESLint
+
+Add `pathGroups` to `import/order` so the alias is treated as internal:
+
+```javascript
+'import/order': ['error', {
+  'groups': ['builtin', 'external', 'internal', 'parent', 'sibling', 'index'],
+  'pathGroups': [{ pattern: '@src/**', group: 'internal' }],
+  'newlines-between': 'always',
+}],
+```
+
+---
+
 ## package.json scripts
 
 Required scripts in every project:
