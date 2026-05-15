@@ -142,6 +142,13 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       include: ['src/**/*.ts'],
+      reporter: ['text', 'html'],
+      thresholds: {
+        lines: 100,
+        functions: 100,
+        branches: 100,
+        statements: 100,
+      },
     },
   },
 })
@@ -176,6 +183,7 @@ Required scripts in every project:
     "lint:fix":   "eslint src --fix",
     "test":       "vitest run",
     "test:watch": "vitest",
+    "coverage":   "vitest run --coverage",
     "ci":         "npm run lint && tsc --noEmit && npm run test && npm run build"
   }
 }
@@ -185,6 +193,7 @@ Required scripts in every project:
 - `build` compiles to native JavaScript for production
 - `start` runs the compiled output — never runs TypeScript in production
 - `ci` runs the full pipeline in order — lint, typecheck, tests, build. Build only runs if everything before it passes
+- `coverage` runs tests with coverage and generates text summary + HTML report in `coverage/`
 - `lint` runs ESLint once — use in CI
 - `lint:fix` runs ESLint and auto-fixes what it can
 
@@ -274,6 +283,13 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       include: ['src/**/*.ts'],
+      reporter: ['text', 'html'],
+      thresholds: {
+        lines: 100,
+        functions: 100,
+        branches: 100,
+        statements: 100,
+      },
     },
   },
 })
@@ -285,6 +301,13 @@ export default defineConfig({
 - Test at the highest level possible — a handler test covers handler, service, and repository together
 - `service.test.ts` and `repository.test.ts` only exist to cover what the handler test cannot reach
 - Each test file creates its own isolated infrastructure in `beforeAll` and destroys it in `afterAll`
+- Tests must always achieve 100% coverage across lines, functions, branches, and statements. Thresholds are enforced in `vitest.config.ts` — the build fails if any threshold is not met. If 100% cannot be reached, stop and notify the human immediately with the uncovered lines and the reason why they cannot be covered.
+
+Install the coverage provider:
+
+```
+npm install -D @vitest/coverage-v8
+```
 
 ```typescript
 // test/helper/database.ts
