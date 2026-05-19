@@ -9,3 +9,9 @@ Read all three indexes below at the start of every task. Open individual files o
 | `rules/` | [rules/00-index.md](rules/00-index.md) | Behavioral rules: when X, do Y, never Z |
 | `playbooks/` | [playbooks/00-index.md](playbooks/00-index.md) | Step-by-step procedures for recurring tasks |
 | `architecture/` | [architecture/00-index.md](architecture/00-index.md) | Structural conventions organized by area — read before touching that area |
+
+## Maintenance
+
+| File | Purpose |
+|------|---------|
+| [999-update.md](999-update.md) | How to update this entire `.ia/` directory from the base repository |
