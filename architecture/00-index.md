@@ -18,3 +18,16 @@ Files numbered 01-29 are base conventions. Files numbered 30+ are project-specif
 | # | Name | Scope | File |
 |---|------|-------|------|
 | 02 | Node.js + TypeScript | Before writing or modifying any Node.js + TypeScript code | [02-nodejs-typescript.md](02-nodejs-typescript.md) |
+
+## React Native / Mobile
+
+| # | Name | Scope | File |
+|---|------|-------|------|
+| 03 | React Native + Expo | Before writing or modifying any React Native / Expo code | [03-react-native.md](03-react-native.md) |
+
+## AWS
+
+| # | Name | Scope | File |
+|---|------|-------|------|
+| 04 | DynamoDB | Before creating or modifying DynamoDB tables, GSIs or queries | [04-dynamo.md](04-dynamo.md) |
+| 05 | AWS Lambda + Node.js | Before writing or modifying any AWS Lambda + Node.js code | [05-aws-lambda-nodejs.md](05-aws-lambda-nodejs.md) |

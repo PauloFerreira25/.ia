@@ -17,18 +17,20 @@ description: "Read before writing or modifying any React Native / Expo code."
 
 ## Índice
 
-| Seção                        | Conteúdo                                                                                                                           | Quando ler                                                                                          |
-| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| **S1 — Filosofia e Padrões** | Princípios gerais, TypeScript, Atomic Design, type safety, convenções de nomes, linting, logs, performance, testes                 | Sempre — qualquer task                                                                              |
-| **S2 — Infraestrutura**      | Dependências, estrutura de pastas, camadas (tela / service / HTTP / store / context), navegação, tema, config, types, hooks, utils | Ao criar ou alterar estrutura, novos arquivos, novas camadas                                        |
-| **S3 — Implementação**       | `authStore`, stores de domínio (bootstrap/clear), erros críticos e telas de erro                                                   | Somente ao implementar ou dar manutenção em: auth, sessão, bootstrap, fluxo de login, telas de erro |
+| Seção                           | Conteúdo                                                                                                                           | Quando ler                                                                                          |
+| ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| **S1 — Filosofia e Padrões**    | Princípios gerais, TypeScript, Atomic Design, type safety, convenções de nomes, linting, logs, performance, testes                 | Sempre — qualquer task                                                                              |
+| **S2 — Infraestrutura**         | Dependências, estrutura de pastas, camadas (tela / service / HTTP / store / context), navegação, tema, config, types, hooks, utils | Ao criar ou alterar estrutura, novos arquivos, novas camadas                                        |
+| **S3 — Implementação**          | `authStore`, stores de domínio (bootstrap/clear), erros críticos e telas de erro                                                   | Somente ao implementar ou dar manutenção em: auth, sessão, bootstrap, fluxo de login, telas de erro |
+| **S4 — Padrões de Interação**   | Loading (local + overlay global), erros (tipos, hooks, toast), estados vazios, formulários (validação, hooks de ação)              | Ao implementar qualquer tela com loading, erro, lista vazia ou formulário                           |
 
 **Mapeamento task → seção:**
 
-- Criar ou editar qualquer tela, componente, hook, util → **S1 + S2**
+- Criar ou editar qualquer tela, componente, hook, util → **S1 + S2 + S4**
 - Dúvida sobre onde colocar um arquivo ou qual camada usar → **S2**
 - Implementar login, logout, bootstrap, tela de erro → **S1 + S2 + S3**
 - Dar manutenção em `authStore`, `AuthContext`, `errorStore` → **S3**
+- Implementar formulário, loading, feedback de erro ou estado vazio → **S4**
 
 ---
 
@@ -584,14 +586,60 @@ O `AuthContext` **nunca**:
 
 Suporte a múltiplos idiomas é implementado como uma store — nunca como um Context. Uma `languageStore` guarda o idioma atual e as traduções carregadas. Qualquer componente lê da store. Trocar idioma atualiza todos os assinantes via Zustand.
 
+**Stack:**
+
+- **`i18next`** — motor de i18n, gerencia idioma atual e carregamento de traduções
+- **`react-i18next`** — hook `useTranslation()` para componentes React Native
+- **`zod-i18n-map`** — integra zod com i18next, traduz mensagens de validação automaticamente
+
+**Estrutura de arquivos:**
+
+```
+src/
+└── locales/
+    ├── pt-BR.json   ← idioma padrão
+    └── es.json      ← adicionar quando necessário
+```
+
+Organização das chaves por domínio:
+
+```json
+{
+  "validation": {
+    "required": "Campo obrigatório.",
+    "email": "Email inválido.",
+    "min": "Mínimo {{count}} caracteres."
+  },
+  "action": {
+    "save": "Salvar",
+    "cancel": "Cancelar",
+    "delete": "Excluir",
+    "add": "Adicionar"
+  }
+}
+```
+
+**Uso nos componentes:**
+
+```typescript
+const { t } = useTranslation()
+
+<TextInput label={t('entity.name')} />
+<Button>{t('action.save')}</Button>
+```
+
+**Regra obrigatória:** nenhum texto visível ao usuário é hardcoded. Todo string que aparece na UI passa por `t()`. Isso inclui: labels, placeholders, mensagens de erro, títulos de tela, textos de botão, mensagens de estado vazio, toasts.
+
+**Integração com o `languageStore`:**
+
 ```
 authStore.bootstrap()
-  → languageStore.bootstrap()  ← carrega idioma salvo e traduções
+  → languageStore.bootstrap()  ← carrega idioma salvo + chama i18next.changeLanguage()
   → accountStore.bootstrap()
   → ...
 ```
 
-A lib de i18n e a estrutura dos arquivos de tradução são definidas pelo projeto no `30+`. O princípio que não muda: **i18n é estado global — vai em store, não em Context.**
+**i18n é estado global — vai em store, não em Context.**
 
 #### Sobre Contexts em geral
 
@@ -911,3 +959,603 @@ export function useReportCriticalError() {
 - Oferecer a ação de recuperação adequada ao contexto
 - Exibir detalhes técnicos do erro (código, serviço, timestamp) para apoiar o suporte
 - **Nunca expor dados sensíveis** — token JWT, senhas e dados pessoais (nome, email, CPF) nunca aparecem
+
+---
+
+## S4 — Padrões de Interação
+
+> Leia esta seção ao implementar qualquer tela com loading, erro, lista vazia ou formulário.
+
+---
+
+### Loading
+
+O projeto tem dois contextos de loading com comportamentos distintos.
+
+#### Loading local — busca inicial de dados
+
+**Telas com formulário ou conteúdo único** — exibe `ActivityIndicator` centralizado enquanto aguarda.
+
+```typescript
+return loading ? <ActivityIndicator style={{ flex: 1 }} /> : <conteúdo />
+```
+
+**Telas com lista** — exibe `SKELETON_COUNT` repetições do `SkeletonCard` enquanto aguarda. O skeleton é um card cinza claro com animação de shimmer — único componente, independente do tipo de item da lista.
+
+```typescript
+return loading ? (
+  <>
+    {Array.from({ length: SKELETON_COUNT }).map((_, i) => (
+      <SkeletonCard key={i} />
+    ))}
+  </>
+) : <FlatList ... />
+```
+
+`SKELETON_COUNT` vem de `config`:
+
+```typescript
+export const SKELETON_COUNT = Number(process.env.EXPO_PUBLIC_SKELETON_COUNT ?? 5)
+```
+
+`SkeletonCard` fica em `atom/feedback/SkeletonCard.tsx`.
+
+#### Overlay global — ações do usuário
+
+Usado quando o usuário executa uma ação que chama a API (salvar, inscrever, deletar, login, logout, etc.). Bloqueia a tela inteira via `loadingStore`, impedindo duplo-clique e navegação acidental durante a operação.
+
+**Regra:** toda operação `async` disparada pelo usuário — via `service` ou via `store action async` — usa o overlay global. Sem exceção.
+
+Operações síncronas de store (`setUser`, `clearError`, `setError`) **não** usam o overlay — são instantâneas.
+
+O `LoadingOverlay` é um `Modal` transparente com `ActivityIndicator` renderizado na raiz do app, acima de tudo (tabs, header, navegação).
+
+---
+
+### Erros
+
+O projeto tem cinco tipos de erro com apresentações distintas.
+
+#### `showToast` — wrapper obrigatório
+
+Toda chamada ao toast passa por `showToast` em `utils/toast/toast.ts`. Nunca chamar a lib de toast diretamente. Os defaults ficam em um único lugar.
+
+```typescript
+// utils/toast/toast.ts
+import { TOAST_VISIBILITY_MS } from '@/config'
+
+export function showToast(params: ToastShowParams) {
+  Toast.show({
+    position: 'top',
+    visibilityTime: TOAST_VISIBILITY_MS,
+    ...params,
+  })
+}
+```
+
+O tempo de exibição é configurável em `src/config`:
+
+```typescript
+// src/config/index.ts
+export const TOAST_VISIBILITY_MS = Number(
+  process.env.EXPO_PUBLIC_TOAST_VISIBILITY_MS ?? 30_000
+)
+```
+
+#### Toast types padrão
+
+Três types são definidos uma vez na configuração do `react-native-toast-message`:
+
+| Type | Ícone | Quando usar |
+|---|---|---|
+| `error` | ícone de erro/alerta | Erro de negócio da API |
+| `networkError` | ícone de rede/wifi | Sem conexão, timeout |
+| `success` | ícone de check | Ação concluída com sucesso |
+
+Todos seguem o mesmo comportamento: topo da tela, `TOAST_VISIBILITY_MS` para sumir, swipe para fechar, toque pausa o contador.
+
+#### Tipo 1 — Validação de formulário
+
+Aparece inline, diretamente abaixo do campo com problema.
+
+- Ao sair do campo (`onBlur`) — valida apenas o campo que perdeu foco
+- Campo não tocado nunca exibe erro, mesmo se obrigatório
+- No submit — valida todos os campos, incluindo os não tocados
+
+```typescript
+<TextInput
+  error={touched.nome && !!errors.nome}
+  onBlur={() => setTouched(t => ({ ...t, nome: true }))}
+/>
+{touched.nome && errors.nome && (
+  <HelperText type="error">{errors.nome}</HelperText>
+)}
+```
+
+Se o erro puder ser mapeado para um campo específico (ex: "email já cadastrado" vindo da API), trata como validação de formulário — aparece inline no campo correspondente.
+
+#### Tipo 2 — Erro de negócio da API
+
+A API processou a requisição e retornou um erro de regra de negócio que não pode ser atribuído a um campo específico.
+
+**Como aparece:** banner flutuante no topo da tela via toast, sobreposto ao conteúdo sem deslocar o layout. Some automaticamente, mas pode ser fechado por swipe. Tocar pausa o contador.
+
+```typescript
+showToast({ type: 'error', text1: t('error.title'), text2: err.message })
+```
+
+#### Tipo 3 — Sem conexão / timeout
+
+A requisição não chegou ao servidor. Usa toast com type específico de rede (definido no `30+`).
+
+A função `isNetworkError` fica em `utils/error/classifier.ts` e é a única responsável por distinguir erros de rede de erros de negócio.
+
+#### Tipo 4 — Sessão expirada (401)
+
+Interceptado pelo `httpClient` e tratado exclusivamente pelo `AuthContext` — nenhuma tela trata 401 diretamente.
+
+```
+httpClient recebe 401 → handler do AuthContext → showToast → authStore.clearAuth() → AppNavigator redireciona para login
+```
+
+#### Tipo 5 — Erro crítico / inesperado
+
+Último recurso do `catch` — não é de rede, não é de negócio, não foi previsto. Vai para `errorStore` + `PublicErrorGenericScreen` via `useReportCriticalError()`.
+
+**Hierarquia de decisão no `catch`:**
+
+```typescript
+} catch (err) {
+  if (isNetworkError(err)) {
+    showToast({ type: 'networkError', ... })
+  } else if (err instanceof ApiError) {
+    showToast({ type: 'error', text2: err.message, ... })
+  } else {
+    reportCriticalError(err)
+  }
+}
+```
+
+**Regra:** todo `catch` de tela segue essa hierarquia. Nunca silenciar um erro com `catch (err) {}` vazio.
+
+#### Hooks de ação — `useErrorHandler` e `useAsyncAction`
+
+Para evitar repetição do mesmo bloco de loading + erro em toda tela, dois hooks encapsulam essas responsabilidades.
+
+**`useErrorHandler`** — classifica e apresenta o erro automaticamente. Fica em `hooks/commons/useErrorHandler.ts`.
+
+```typescript
+export function useErrorHandler() {
+  const reportCritical = useReportCriticalError()
+  const { t } = useTranslation()
+
+  return (err: unknown) => {
+    if (isNetworkError(err)) {
+      showToast({ type: 'networkError', text1: t('error.network.title'), text2: t('error.network.message') })
+    } else if (err instanceof ApiError) {
+      showToast({ type: 'error', text1: t('error.title'), text2: err.message })
+    } else {
+      reportCritical(err)
+    }
+  }
+}
+```
+
+**`useAsyncAction`** — envolve qualquer ação assíncrona com overlay de loading e tratamento de erro. Fica em `hooks/commons/useAsyncAction.ts`.
+
+```typescript
+interface AsyncActionOptions {
+  onSuccess?: () => void
+  onError?: (err: unknown) => boolean | void
+  overlay?: boolean  // default: true — false para telas de ação em lote
+}
+
+export function useAsyncAction() {
+  const handleError = useErrorHandler()
+
+  return async (action: () => Promise<void>, options?: AsyncActionOptions) => {
+    const showOverlay = options?.overlay ?? true
+    if (showOverlay) loadingStore.show()
+    try {
+      await action()
+      options?.onSuccess?.()
+    } catch (err) {
+      const handled = options?.onError?.(err)
+      if (!handled) handleError(err)
+    } finally {
+      if (showOverlay) loadingStore.hide()
+    }
+  }
+}
+```
+
+`onError` retorna `true` se tratou o erro — o handler padrão não é chamado. Sem retorno, cai no handler automaticamente.
+
+**Ação em lote com `overlay: false`** — para telas com múltiplas ações em sequência (ex: marcar presenças), desabilitar o overlay e gerenciar loading localmente por item:
+
+```typescript
+const [loadingId, setLoadingId] = useState<string | null>(null)
+
+const handleMark = (id: string) => runAction(
+  async () => { setLoadingId(id); await service.mark(id) },
+  {
+    overlay: false,
+    onSuccess: () => { setLoadingId(null); scheduleRefresh() },
+    onError: () => { setLoadingId(null); return false },
+  }
+)
+```
+
+**Debounce para recarregar lista** — após ações em lote, a lista recarrega quando o usuário para de interagir. Tempo configurável em `src/config`:
+
+```typescript
+export const BATCH_ACTION_DEBOUNCE_MS = Number(
+  process.env.EXPO_PUBLIC_BATCH_DEBOUNCE_MS ?? 5_000
+)
+```
+
+```typescript
+const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+const scheduleRefresh = () => {
+  if (refreshTimer.current) clearTimeout(refreshTimer.current)
+  refreshTimer.current = setTimeout(loadList, BATCH_ACTION_DEBOUNCE_MS)
+}
+```
+
+---
+
+### Listas paginadas
+
+Listas que buscam dados da API usam paginação por cursor com botão "Carregar mais". Scroll infinito não é usado — o usuário controla explicitamente quando buscar mais itens.
+
+#### Estado
+
+```typescript
+const [items, setItems] = useState<Item[]>([])
+const [nextCursor, setNextCursor] = useState<string | null>(null)
+const [loadingMore, setLoadingMore] = useState(false)
+```
+
+#### Comportamento
+
+- **Carga inicial** — loading local (`ActivityIndicator` centralizado), substitui o conteúdo
+- **Carregar mais** — `loadingMore` no botão, itens novos são **concatenados** à lista existente
+- **Pull-to-refresh** — obrigatório em toda lista. Reseta `items` e `nextCursor` para `null`, recarrega do início
+- **Botão "Carregar mais"** — visível apenas quando `nextCursor !== null`, desabilitado durante `loadingMore`
+- **Fim da lista** — `nextCursor === null`, botão some, nenhuma indicação extra necessária
+
+#### Exemplo
+
+```typescript
+const [items, setItems] = useState<Item[]>([])
+const [nextCursor, setNextCursor] = useState<string | null>(null)
+const [loadingMore, setLoadingMore] = useState(false)
+const runAction = useAsyncAction()
+
+const loadMore = () => runAction(
+  async () => {
+    setLoadingMore(true)
+    const res = await service.list({ limit: PAGE_SIZE, cursor: nextCursor ?? undefined })
+    setItems(prev => [...prev, ...res.items])
+    setNextCursor(res.nextCursor)
+  },
+  { overlay: false, onSuccess: () => setLoadingMore(false), onError: () => { setLoadingMore(false); return false } }
+)
+
+const handleRefresh = () => {
+  setItems([])
+  setNextCursor(null)
+  loadInitial()  // mesma função do useEffect inicial
+}
+
+return (
+  <FlatList
+    data={items}
+    keyExtractor={item => item.id}
+    renderItem={({ item }) => <ItemCard item={item} />}
+    onRefresh={handleRefresh}
+    refreshing={refreshing}
+    ListFooterComponent={
+      nextCursor ? (
+        <Button loading={loadingMore} onPress={loadMore}>
+          {t('action.loadMore')}
+        </Button>
+      ) : null
+    }
+    ListEmptyComponent={!loading ? <EmptyState ... /> : null}
+  />
+)
+```
+
+O tamanho da página vem de `config`:
+
+```typescript
+// src/config/index.ts
+export const PAGE_SIZE = Number(process.env.EXPO_PUBLIC_PAGE_SIZE ?? 20)
+```
+
+---
+
+### Estados Vazios
+
+Quando uma lista não tem itens, o componente `EmptyState` substitui o conteúdo.
+
+- Ícone + mensagem contextual definidos pela tela — nunca genérico (`"Nenhum item"`)
+- Centralizado vertical e horizontalmente na tela
+- Ícone discreto — pequeno, acima da mensagem
+- Ação opcional — a tela passa `action` apenas quando faz sentido pelo negócio
+
+```typescript
+// atom/feedback/EmptyState.tsx
+interface EmptyStateProps {
+  icon: string     // nome do ícone (ex: MaterialCommunityIcons)
+  message: string  // mensagem contextual — sempre via t()
+  action?: {
+    label: string
+    onPress: () => void
+  }
+}
+```
+
+**FAB** é um padrão separado do `EmptyState`. Aparece nas telas que permitem adição, independente de haver itens ou não.
+
+Regras:
+- O ícone varia conforme a ação da tela — não é sempre `plus`
+- FAB e botão no header são ambos válidos — a tela decide conforme o contexto
+- O FAB nunca cobre conteúdo: o `FlatList` recebe `contentContainerStyle={{ paddingBottom: FAB_HEIGHT }}` para o último item respirar acima do botão
+- Quantidade de FABs por tela: perguntar ao humano — decisão específica de cada tela
+
+---
+
+### Modais vs Navegação
+
+**Regra: preferir navegação a modal.** Toda interação que exigiria um modal — formulário, detalhe, confirmação de dados — vira uma tela nova com `navigate`.
+
+Modal só é justificado quando for impossível resolver com navegação — quando o bloqueio da tela de origem é parte essencial da experiência, não uma conveniência. Se houver dúvida, é uma tela nova.
+
+---
+
+### Layouts de tela
+
+Toda tela usa um dos layouts abaixo como esqueleto estrutural. Nunca montar a estrutura de scroll, teclado e rodapé diretamente na tela — o layout encapsula isso.
+
+#### `ListScreenLayout`
+
+Para telas com lista de dados. Gerencia o `FlatList` com pull-to-refresh, skeleton, "carregar mais" e FAB opcional.
+
+```
+SafeAreaView
+└── FlatList (pull-to-refresh, skeleton, ListFooterComponent)
+FAB (absolute, canto inferior direito — opcional)
+```
+
+```typescript
+// layouts/list/ListScreenLayout.tsx
+interface ListScreenLayoutProps<T> {
+  data: T[]
+  loading: boolean
+  nextCursor: string | null
+  loadingMore: boolean
+  onRefresh: () => void
+  onLoadMore: () => void
+  renderItem: (item: T) => React.ReactElement
+  keyExtractor: (item: T) => string
+  emptyState: React.ReactElement
+  fab?: { icon: string; onPress: () => void }
+}
+```
+
+#### `FormScreenLayout`
+
+Para telas com formulário. Gerencia `KeyboardAvoidingView`, scroll dos campos e rodapé fixo com o botão de salvar.
+
+```
+KeyboardAvoidingView
+└── ScrollView (campos do formulário)
+Footer fixo (botão salvar — fora do scroll)
+```
+
+```typescript
+// layouts/forms/FormScreenLayout.tsx
+interface FormScreenLayoutProps {
+  children: React.ReactNode        // campos do formulário
+  onSave: () => void
+  saveLabel?: string               // default: t('action.save')
+  saving?: boolean                 // loading no botão
+  saveDisabled?: boolean           // desabilita o botão
+}
+```
+
+```typescript
+// uso na tela
+return (
+  <FormScreenLayout
+    onSave={handleSave}
+    saveDisabled={Object.keys(errors).length > 0}
+  >
+    <TextInput label={t('person.name')} ... />
+    <TextInput label={t('person.email')} ... />
+  </FormScreenLayout>
+)
+```
+
+**`KeyboardAvoidingView`:** `behavior="padding"` no iOS, sem behavior no Android — o Android ajusta via `windowSoftInputMode` no `app.json`.
+
+---
+
+### Formulários
+
+#### Stack de validação
+
+- **`react-hook-form`** — gerencia valores, erros e estado do formulário
+- **`zod`** — define o schema de validação com tipos TypeScript gerados automaticamente
+- **`zod-i18n-map`** — integra zod com o sistema de i18n do projeto para traduzir mensagens de validação
+
+#### Comportamento de validação
+
+- **onBlur** — ao sair de um campo, valida aquele campo. Campos não tocados não exibem erro.
+- **No submit** — valida todos os campos, incluindo os não tocados.
+- **Botão de submit** — habilitado no estado inicial. Desabilitado quando há erros visíveis: `disabled={Object.keys(errors).length > 0}`.
+
+#### `useFormAction`
+
+Hook que encapsula todo o ciclo de um formulário: validação, check de dirty, overlay de loading e tratamento de erro. Usado em **todos os formulários** — criação e edição.
+
+```typescript
+// hooks/commons/useFormAction.ts
+export function useFormAction<T>(form: UseFormReturn<T>) {
+  const runAction = useAsyncAction()
+  const navigation = useNavigation()
+  const { t } = useTranslation()
+  const errorCount = useRef(0)
+
+  return (action: (data: T) => Promise<void>, options?: AsyncActionOptions) => {
+    return form.handleSubmit(
+      async (data) => {
+        errorCount.current = 0
+        if (!form.formState.isDirty) {
+          navigation.goBack()  // nada mudou — finge que salvou, sem chamar a API
+          return
+        }
+        await runAction(() => action(data), options)
+      },
+      () => {
+        errorCount.current += 1
+        if (errorCount.current >= 3) {
+          errorCount.current = 0
+          showToast({ type: 'error', text1: t('form.hasErrors.title'), text2: t('form.hasErrors.message') })
+        }
+      }
+    )
+  }
+}
+```
+
+**Fluxo interno:**
+1. Valida todos os campos — marca os não tocados com erro se inválidos
+2. Se inválido 3 vezes seguidas — exibe toast orientando o usuário a verificar os campos (resolve campos fora da área visível em telas pequenas)
+3. Se nada mudou (`isDirty = false`) — navega de volta sem chamar a API
+4. Executa a ação via `useAsyncAction` — overlay + tratamento de erro
+
+#### `useDestructiveAction`
+
+Hook para ações irreversíveis. Exibe dialog de confirmação, aguarda resposta, executa apenas no OK.
+
+**Regra padrão: toda ação irreversível usa `useDestructiveAction`.** A exceção é quando um humano expressa que o dialog deve ser removido — nesse caso, documentar com comentário no código.
+
+```typescript
+// hooks/commons/useDestructiveAction.ts
+export function useDestructiveAction() {
+  const runAction = useAsyncAction()
+  const { t } = useTranslation()
+  const [visible, setVisible] = useState(false)
+  const [dialog, setDialog] = useState<{ title: string; message: string } | null>(null)
+  const pendingAction = useRef<(() => void) | null>(null)
+
+  const destructiveAction = (
+    action: () => Promise<void>,
+    options?: AsyncActionOptions & { title?: string; message?: string }
+  ) => {
+    setDialog({
+      title: options?.title ?? t('dialog.destructive.title'),
+      message: options?.message ?? t('dialog.destructive.message'),
+    })
+    pendingAction.current = () => runAction(action, options)
+    setVisible(true)
+  }
+
+  const handleConfirm = () => { setVisible(false); pendingAction.current?.() }
+
+  const ConfirmDialog = () => (
+    <Dialog visible={visible} onDismiss={() => setVisible(false)}>
+      <Dialog.Title>{dialog?.title}</Dialog.Title>
+      <Dialog.Content><Text>{dialog?.message}</Text></Dialog.Content>
+      <Dialog.Actions>
+        <Button onPress={() => setVisible(false)}>{t('action.cancel')}</Button>
+        <Button onPress={handleConfirm}>{t('action.confirm')}</Button>
+      </Dialog.Actions>
+    </Dialog>
+  )
+
+  return { destructiveAction, ConfirmDialog }
+}
+```
+
+A mensagem do dialog é passada pela tela — contextual e específica, nunca genérica:
+
+```typescript
+const { destructiveAction, ConfirmDialog } = useDestructiveAction()
+
+const handleDelete = () => destructiveAction(
+  async () => { await service.delete(id); showToast(...); navigation.goBack() },
+  { message: t('entity.deleteConfirm', { name: entity.name }) }
+)
+
+return (
+  <>
+    <Button onPress={handleDelete}>{t('action.delete')}</Button>
+    <ConfirmDialog />
+  </>
+)
+```
+
+#### Separação de handlers e JSX
+
+Handlers são definidos como `const` antes do `return` — nunca como funções inline no JSX.
+
+```typescript
+export function SomeScreen() {
+  const form = useForm<FormData>({ defaultValues: entity })
+  const runFormAction = useFormAction(form)
+  const runAction = useAsyncAction()
+
+  const handleSave = runFormAction(async (data) => {
+    await service.update(id, data)
+    showToast({ type: 'success', ... })
+    navigation.goBack()
+  })
+
+  const handleDelete = () => runAction(async () => {
+    await service.delete(id)
+    navigation.goBack()
+  })
+
+  return (
+    <>
+      <TextInput label={t('entity.name')} {...form.register('name')} />
+      <Button onPress={handleSave}>{t('action.save')}</Button>
+      <Button onPress={handleDelete}>{t('action.delete')}</Button>
+    </>
+  )
+}
+```
+
+Funções inline no `onPress` são permitidas apenas para casos triviais: `onPress={() => navigation.goBack()}`.
+
+#### Feedback de sucesso
+
+Toda ação que conclui com sucesso exibe um toast `success` — sem exceção. Mesmo quando a tela navega de volta, o toast aparece sobre a tela de destino.
+
+**Regra de navegação após sucesso:**
+- Formulários (criação e edição) → toast + `goBack()`
+- Ações de propósito único (deletar, confirmar) → toast + `goBack()`
+- Ações em lote (marcar presenças, toggles em lista) → toast por ação + debounce para recarregar lista
+
+#### Campos obrigatórios
+
+Indicados com asterisco após o label: `Nome *`. Uma legenda discreta no topo do formulário explica o asterisco — uma vez, não em cada campo.
+
+```typescript
+<Text variant="bodySmall">{t('form.requiredFieldsNote')}</Text>
+<TextInput label={`${t('entity.name')} *`} ... />  // obrigatório
+<TextInput label={t('entity.phone')} ... />          // opcional
+```
+
+**Quando usar cada hook:**
+
+| Hook | Quando usar |
+|---|---|
+| `useFormAction` | Todo formulário — criação e edição |
+| `useAsyncAction` | Ações sem formulário e sem confirmação |
+| `useDestructiveAction` | Ações irreversíveis que precisam de confirmação |
