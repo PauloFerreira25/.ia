@@ -25,6 +25,12 @@ Files numbered 01-29 are base conventions. Files numbered 30+ are project-specif
 |---|------|-------|------|
 | 03 | React Native + Expo | Before writing or modifying any React Native / Expo code | [03-react-native.md](03-react-native.md) |
 
+## Vue.js / Web
+
+| # | Name | Scope | File |
+|---|------|-------|------|
+| 06 | Vue.js | Before writing or modifying any Vue.js code | [06-vuejs.md](06-vuejs.md) |
+
 ## AWS
 
 | # | Name | Scope | File |

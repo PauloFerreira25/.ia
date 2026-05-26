@@ -500,9 +500,24 @@ export const xyzService = {
 Cada arquivo em `services/api/` é um cliente HTTP dedicado a um backend. Um cliente:
 
 - Injeta o JWT no header `Authorization` lendo o token diretamente do `authStore` (em memória) — nunca do `AsyncStorage`. O `AsyncStorage` é acessado apenas no `authStore.bootstrap()` durante a inicialização do app.
-- Desembrulha o envelope de resposta da API (`{ success, data, message, error }`)
-- Lança um erro com `message` e `code` quando `success: false`
+- Desembrulha o envelope de resposta da API e lança erro quando a resposta indica falha
 - Chama o handler de 401 registrado pelo `AuthContext` (quando aplicável)
+
+**Envelope padrão de resposta** — este é o modelo base; o documento `30+` do projeto define a estrutura real caso o backend divirja:
+
+```typescript
+// sucesso (lista)
+{ data: T[], pagination: { pageSize: number, nextCursor: string | null, hasNext: boolean, ... } }
+
+// sucesso (item único)
+{ data: T }
+
+// erro
+{ "error": "ENTITY_NOT_FOUND", "message": "Entity abc-123 not found" }
+```
+
+- `error` — código `UPPER_SNAKE_CASE`, estável e comparável programaticamente. Quando vindo do backend, passa por `t()` para exibir ao usuário.
+- `message` — texto legível por humanos, pode mudar — não usar para lógica.
 
 Nenhum arquivo fora de `services/` importa um cliente HTTP diretamente.
 
@@ -526,7 +541,7 @@ Stores ficam diretamente em `store/`, sem subpastas. Exemplos de stores típicas
 
 - Dado local da tela (loading, erro, valores de formulário) → `useState`
 - Dado que a tela busca para si mesma → `useState` + service
-- Dado passado entre telas via navegação → params do navigator. Params identificam — não transportam estado. Nunca passe um objeto completo como param. O que vai além de um ID (ex: campos de display para evitar flash de loading) é decisão do projeto, definida no arquivo `30+`.
+- Dado passado entre telas via navegação → params do navigator. Params identificam e orientam — não transportam estado. Passar `id`, `type` ou campos que definem o comportamento da próxima tela é correto. Passar um objeto completo de domínio via params é proibido: some com reload e cria acoplamento implícito entre telas.
 
 **Stores de cache:** quando uma tela identifica, por regra de negócio, que buscar os dados a cada acesso é custoso demais, ela pode requerer uma store de cache dedicada. Essa store vive em `store/` como qualquer outra e é responsável por guardar os dados e controlar quando invalidar (por tempo ou ação do usuário). Não é uma regra criar store de cache para toda lista — é uma decisão caso a caso da tela com base em necessidade real.
 
@@ -628,7 +643,12 @@ const { t } = useTranslation()
 <Button>{t('action.save')}</Button>
 ```
 
-**Regra obrigatória:** nenhum texto visível ao usuário é hardcoded. Todo string que aparece na UI passa por `t()`. Isso inclui: labels, placeholders, mensagens de erro, títulos de tela, textos de botão, mensagens de estado vazio, toasts.
+**Regra obrigatória:** nenhum texto visível ao usuário é hardcoded. Todo string definido no frontend passa por `t()`. Isso inclui: labels, placeholders, títulos de tela, textos de botão, mensagens de estado vazio, toasts de feedback.
+
+**Conteúdo vindo do backend — caso a caso:**
+
+- Backend enviou um **código de erro** (ex: `"USER_NOT_FOUND"`) → passar por `t()`, traduzindo o código para uma mensagem legível
+- Backend enviou **dados de domínio** (nome de usuário, título de produto, descrição) → exibir diretamente, sem `t()`. São valores inseridos por usuários, não constantes do sistema — não faz sentido traduzi-los.
 
 **Integração com o `languageStore`:**
 
@@ -752,7 +772,7 @@ Se o arquivo crescer muito, quebre por domínio (`config/api.ts`, `config/featur
 
 O padrão é sempre criar tipos em `types/`, com subdiretório por domínio.
 
-**Proibido usar `index.ts` dentro dos subdiretórios.** O caminho do arquivo é informação semântica — ele diz de onde o tipo veio e qual é sua natureza. Um `index.ts` que re-exporta tudo apaga essa informação: `import { User } from '@/types/user'` não diz nada. `import { User } from '@/types/user/user.model'` diz que é o modelo de domínio. `import { User } from '@/types/user/user.api'` diz que é um tipo de contrato com a API. Sem o caminho completo, quem lê o import não sabe de onde veio o tipo nem o que ele representa.
+**Proibido usar `index.ts` como barrel export em qualquer parte do `src/`.** Essa regra é global — vale para `types/`, `components/`, `hooks/`, `services/`, `utils/` e demais diretórios. O caminho do arquivo é informação semântica: `import { User } from '@/types/user/user.model'` diz que é o modelo de domínio. `import { User } from '@/types/user/user.api'` diz que é um tipo de contrato com a API. Um `index.ts` que re-exporta tudo apaga essa informação, dificulta tree-shaking e aumenta o risco de imports circulares.
 
 ```
 types/
@@ -1207,25 +1227,49 @@ const scheduleRefresh = () => {
 
 ### Listas paginadas
 
-Listas que buscam dados da API usam paginação por cursor com botão "Carregar mais". Scroll infinito não é usado — o usuário controla explicitamente quando buscar mais itens.
+O modelo de paginação é sempre por cursor. Qual dos dois casos abaixo usar é ditado pela regra de negócio — não por preferência técnica.
 
-#### Estado
+---
+
+#### Caso 1 — Full scan: carregar tudo, tratar no frontend
+
+Usado quando a operação exige acesso ao conjunto completo de dados — ordenação arbitrária, filtros cruzados, seleção múltipla, exportação. O frontend busca todos os registros em lotes via cursor até o fim e aplica ordenação, filtragem e exibição localmente.
+
+Exemplos: administrar todos os usuários, gerenciar catálogo de produtos.
 
 ```typescript
 const [items, setItems] = useState<Item[]>([])
-const [nextCursor, setNextCursor] = useState<string | null>(null)
-const [loadingMore, setLoadingMore] = useState(false)
+const [isLoading, setIsLoading] = useState(false)
+
+async function loadAll(): Promise<void> {
+  setIsLoading(true)
+  const all: Item[] = []
+  let cursor: string | null = null
+
+  try {
+    do {
+      const res = await itemService.list({ cursor: cursor ?? undefined, pageSize: PAGE_SIZE })
+      all.push(...res.data)
+      cursor = res.pagination.nextCursor
+    } while (cursor)
+    setItems(all)
+  } finally {
+    setIsLoading(false)
+  }
+}
 ```
 
-#### Comportamento
+Filtro, ordenação e busca são feitos sobre `items` com `useMemo` — sem nova chamada à API.
 
-- **Carga inicial** — loading local (`ActivityIndicator` centralizado), substitui o conteúdo
-- **Carregar mais** — `loadingMore` no botão, itens novos são **concatenados** à lista existente
-- **Pull-to-refresh** — obrigatório em toda lista. Reseta `items` e `nextCursor` para `null`, recarrega do início
-- **Botão "Carregar mais"** — visível apenas quando `nextCursor !== null`, desabilitado durante `loadingMore`
-- **Fim da lista** — `nextCursor === null`, botão some, nenhuma indicação extra necessária
+> O limite de volume viável para o Caso 1 depende do projeto, da tela e da regra de negócio. Quando o volume comprometer a performance do frontend, o filtro deve migrar para o backend — decisão documentada no arquivo `30+` do domínio.
 
-#### Exemplo
+---
+
+#### Caso 2 — Continuação: carregar sob demanda
+
+Usado quando os dados têm uma ordem natural (mais recentes, por data de criação) e o usuário avança conforme necessita. O frontend busca o primeiro lote e exibe um botão "Carregar mais" enquanto houver cursor. Scroll infinito não é usado — o usuário controla explicitamente quando buscar mais itens.
+
+Exemplos: listar os 50 eventos mais recentes, mostrar produtos por ordem de criação.
 
 ```typescript
 const [items, setItems] = useState<Item[]>([])
@@ -1236,9 +1280,9 @@ const runAction = useAsyncAction()
 const loadMore = () => runAction(
   async () => {
     setLoadingMore(true)
-    const res = await service.list({ limit: PAGE_SIZE, cursor: nextCursor ?? undefined })
-    setItems(prev => [...prev, ...res.items])
-    setNextCursor(res.nextCursor)
+    const res = await itemService.list({ cursor: nextCursor ?? undefined, pageSize: PAGE_SIZE })
+    setItems(prev => [...prev, ...res.data])
+    setNextCursor(res.pagination.nextCursor)
   },
   { overlay: false, onSuccess: () => setLoadingMore(false), onError: () => { setLoadingMore(false); return false } }
 )
@@ -1246,7 +1290,7 @@ const loadMore = () => runAction(
 const handleRefresh = () => {
   setItems([])
   setNextCursor(null)
-  loadInitial()  // mesma função do useEffect inicial
+  loadInitial()
 }
 
 return (
@@ -1263,17 +1307,21 @@ return (
         </Button>
       ) : null
     }
-    ListEmptyComponent={!loading ? <EmptyState ... /> : null}
+    ListEmptyComponent={!isLoading ? <EmptyState ... /> : null}
   />
 )
 ```
 
-O tamanho da página vem de `config`:
+---
+
+O tamanho do lote vem de `config`:
 
 ```typescript
 // src/config/index.ts
 export const PAGE_SIZE = Number(process.env.EXPO_PUBLIC_PAGE_SIZE ?? 20)
 ```
+
+> Este documento não cobre WebSockets, SSE ou qualquer mecanismo de atualização em tempo real. Projetos que necessitem dessas funcionalidades devem documentá-las em um arquivo `30+`.
 
 ---
 

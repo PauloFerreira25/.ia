@@ -439,6 +439,17 @@ The npm scope signals the audience of the library:
 @pauloferreira25/commons-errors  ← base error classes, error envelope
 ```
 
+> **Important:** `@pauloferreira25/*` repositories are public on GitHub but are **not published to npm**. They exist only to save time writing boilerplate — they are not installable packages.
+>
+> To use one, clone it to `/tmp`, then copy the contents into the project's `shared-libs/`:
+>
+> ```bash
+> git clone https://github.com/pauloferreira25/commons-errors /tmp/commons-errors
+> cp -r /tmp/commons-errors/src shared-libs/commons-errors/src
+> ```
+>
+> After copying, the library lives entirely inside the project and is referenced via `file:` — no external dependency on the GitHub repository.
+
 **`@<project-scope>/*`** — project-specific or business domain libs. Scoped to the project that owns them. Each project defines its own scope.
 
 ---
