@@ -512,6 +512,10 @@ When installing a dependency:
 - Only use packages that are open source and maintained by a company or large community
 - Always install the latest version — run `npm install <package>` without specifying a version
 - Check whether an installed package already solves the problem before adding a new one
+- Never manually edit `package.json` to add a dependency with a pinned version — always let npm resolve and record the version after installation
+- Specifying a version (`npm install <package>@x.y.z`) is only allowed when a human explicitly requests a specific version, or when another installed dependency already constrains that version as a peer dependency
+
+Pinning a specific version installs an outdated package instead of the current latest, accumulating security vulnerabilities over time. Every AI agent that hard-codes a version into `package.json` without running `npm install` introduces this risk.
 
 ---
 

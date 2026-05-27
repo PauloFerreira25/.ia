@@ -397,6 +397,21 @@ A lista não é fechada. Sempre que uma situação recorrente não tiver respost
 
 ## S2 — Infraestrutura
 
+### Instalação de pacotes
+
+Sempre instale pacotes sem especificar versão:
+
+```
+npm install <package>
+```
+
+- Nunca edite o `package.json` manualmente para adicionar uma dependência com versão fixada
+- Especificar versão (`npm install <package>@x.y.z`) só é permitido quando um humano solicitar explicitamente, ou quando outra dependência já instalada exigir aquela versão como peer dependency
+
+Fixar uma versão instala um pacote desatualizado em vez da versão atual, acumulando vulnerabilidades de segurança ao longo do tempo. Todo agente de IA que escreve uma versão diretamente no `package.json` sem executar `npm install` introduz esse risco.
+
+---
+
 ### Estrutura de pastas
 
 ```
