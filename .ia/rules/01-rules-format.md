@@ -20,5 +20,5 @@ When rules overlap:
 Never remove content without explicit user confirmation.
 
 ## Numbering
-- `01-29`: Base rules from this repository
+- `01-29`: Base rules from this repository — project-agnostic, must not contain project-specific content
 - `30+`: Project-specific rules (added per project)

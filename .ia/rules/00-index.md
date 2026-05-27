@@ -16,3 +16,4 @@ Read a rule file when the current task matches its scope description.
 | 09 | Operation Order | When moving, renaming, or restructuring | [09-operation-order.md](09-operation-order.md) |
 | 10 | Verified Information | When providing any information or answer | [10-verified-information.md](10-verified-information.md) |
 | 11 | Concurrency Examples | When showing that tasks will run in parallel | [11-concurrency-examples.md](11-concurrency-examples.md) |
+| 12 | Document Answers | When the human answers a question from an AI agent | [12-document-answers.md](12-document-answers.md) |

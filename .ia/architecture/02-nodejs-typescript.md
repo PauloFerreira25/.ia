@@ -38,7 +38,7 @@ Always use ES Modules. Never use CommonJS.
 
 ```typescript
 import { findById } from './entity.service.js'
-import type { Entity } from './entity.type.js'
+import type { Entity } from './entity.model.js'
 ```
 
 ---
@@ -256,7 +256,21 @@ export default tseslint.config(
 Install required plugins:
 
 ```
-npm install -D typescript-eslint eslint-plugin-import
+npm install -D typescript-eslint eslint-plugin-import eslint-import-resolver-typescript
+```
+
+`eslint-import-resolver-typescript` is required for `eslint-plugin-import` to resolve `.js` imports to `.ts` files under NodeNext module resolution. Without it, ESLint reports missing modules on every local import.
+
+Add the resolver to the ESLint config:
+
+```javascript
+{
+  settings: {
+    'import/resolver': {
+      typescript: { alwaysTryTypes: true },
+    },
+  },
+}
 ```
 
 Key rules enforced:
@@ -468,40 +482,29 @@ shared-libs/commons-types/src/
 Each project must create `src/shared/commons/handler.types.ts` to:
 
 1. Re-export the base types from `@pauloferreira25/commons-types` — making it the single import point within the project
-2. Specialize the base types by combining them with the project's own framework types (Fastify, Express, etc.)
+2. Specialize the base types by combining them with the project's own framework types
 
 ```typescript
 // src/shared/commons/handler.types.ts
-import type { IdParams } from '@pauloferreira25/commons-types'
-import type { FastifyReply, FastifyRequest } from 'fastify'
 
 // Re-export base types — everything in the project imports from here
 export type { IdParams, PaginationParams, PaginationMeta, PaginationResponse } from '@pauloferreira25/commons-types'
 
 // Specializations: base types + project-specific framework types
-export interface HandlerBaseParams {
-  request: FastifyRequest
-  reply:   FastifyReply
-}
-
-export interface HandlerIdParams extends HandlerBaseParams, IdParams {}
-
-export interface HandlerCompositionDeleteParams extends HandlerIdParams {
-  parentId: string
-}
+// defined by each project's architecture document (08+)
 ```
 
 Within a project, always import from `src/shared/commons/handler.types.ts`. Never import directly from `@pauloferreira25/commons-types` in domain or handler files — the specialization file is the single source of truth for all types used in the project.
 
 ```typescript
 // correct
-import type { IdParams, HandlerIdParams } from '@src/shared/commons/handler.types.js'
+import type { IdParams } from '@src/shared/commons/handler.types.js'
 
 // wrong — bypasses the specialization layer
 import type { IdParams } from '@pauloferreira25/commons-types'
 ```
 
-The shared-lib stays clean and framework-agnostic. `handler.types.ts` is where project-specific knowledge (Fastify, handler shapes) lives.
+The shared-lib stays clean and framework-agnostic. `handler.types.ts` is where project-specific framework knowledge lives — defined by the project's architecture document.
 
 ---
 
@@ -569,6 +572,44 @@ Never return a raw array from a list endpoint. Always wrap in the standard envel
 
 ---
 
+## DTOs
+
+DTOs define the shape of data at the HTTP boundary — what enters in the request and what leaves in the response. They live in `<domain>.dto.ts` and are always derived from the base schemas in `<domain>.schema.ts` via `omit`, `extend`, or `pick`. Never define fields directly in a DTO — always derive from a base schema.
+
+Each endpoint has its own request DTO and its own response DTO. Never reuse the same DTO across different endpoints — even if the fields look identical today.
+
+```typescript
+// src/domain/user/user.schema.ts
+import { z } from 'zod'
+
+export const UserBaseSchema = z.object({
+  name:  z.string(),
+  email: z.string().email(),
+  role:  z.enum(['admin', 'member']),
+})
+```
+
+```typescript
+// src/domain/user/user.dto.ts
+import { z } from 'zod'
+
+import { UserBaseSchema } from './user.schema.js'
+
+export const CreateUserBodySchema     = UserBaseSchema.omit({ role: true })
+export const CreateUserResponseSchema = UserBaseSchema.extend({ id: z.string() })
+export const UpdateUserBodySchema     = UserBaseSchema.pick({ name: true })
+export const ListUsersResponseSchema  = UserBaseSchema.extend({ id: z.string() })
+
+export type CreateUserBody     = z.infer<typeof CreateUserBodySchema>
+export type CreateUserResponse = z.infer<typeof CreateUserResponseSchema>
+export type UpdateUserBody     = z.infer<typeof UpdateUserBodySchema>
+export type ListUsersResponse  = z.infer<typeof ListUsersResponseSchema>
+```
+
+The base schema in `user.schema.ts` mirrors the `UserModel` fields that are relevant to the HTTP layer — not the full model. Fields that are internal (database timestamps, soft-delete flags, internal counters) are not included in the base schema.
+
+---
+
 ## Identifiers
 
 Use UUIDv7 for all entity identifiers. Never use auto-increment integers, UUIDv4, or any other format.
@@ -604,7 +645,7 @@ The service fails fast on startup if any required variable is missing or invalid
 
 - `repository` — never throws domain errors. Returns `null` when an entity is not found
 - `service` — checks the result and throws when the business rule is violated
-- `handler` — never has `try/catch`. Errors propagate to the Fastify error middleware
+- `handler` — never has `try/catch`. Errors propagate to the framework error handler
 
 ```typescript
 // repository — returns null, never throws NotFoundError
@@ -627,7 +668,7 @@ async function findById(params: IdParams): Promise<Entity> {
 
 ### AppError base class
 
-`@pauloferreira25/commons-errors` exports `AppError` as the base class for all errors. The Fastify error middleware handles any `AppError` subclass automatically — no registration required.
+`@pauloferreira25/commons-errors` exports `AppError` as the base class for all errors. How the framework intercepts and maps `AppError` subclasses to HTTP responses is defined by each project's architecture document (08+).
 
 ```typescript
 // @pauloferreira25/commons-errors
@@ -720,17 +761,21 @@ domain/<name>/
 ├── <name>.handler.<function>.ts      ← one file per handler function (see Handler file splitting)
 ├── <name>.service.ts                 ← business logic, orchestration, event publishing
 ├── <name>.repository.ts              ← database queries only — no business logic
-├── <name>.schema.ts                  ← input/output validation schemas
-└── <name>.type.ts                    ← TypeScript interfaces and types
+├── <name>.schema.ts                  ← base Zod schemas for the domain
+├── <name>.dto.ts                     ← per-endpoint request and response DTOs
+└── <name>.model.ts                   ← domain entity types and TypeScript helpers
 ```
 
 Layer rules:
 
-- `handler` translates the HTTP request into plain domain types before calling the service
+- `handler` translates the HTTP request into plain service input — no business logic, no conditions
+- `handler` always serializes the response via `Schema.parse()` before returning — never returns raw service output
 - `handler` never queries the database directly — always goes through service
-- `service` never imports types from the HTTP framework
+- `service` owns all business logic and returns what the operation produced — a Model, a composed type, or a primitive. Never returns a DTO and never imports HTTP framework types
+- `service` may call multiple repositories or other services — cross-domain orchestration belongs here
 - `repository` never emits events and never contains business logic
-- `schema` never imports from `service` or `repository`
+- `schema` never imports from `service`, `repository`, or `dto`
+- `dto` derives from `schema` — never defines fields independently
 
 ### Repository isolation
 
@@ -772,16 +817,16 @@ If the `service` has to pass `db` to the repository, the repository layer is pro
 
 Each handler function lives in its own file. Never put more than one handler function in a single file.
 
-**Convention:** `<domain>.handler.<handlerFunctionName>.ts`
+**Convention:** `<domain>.<httpMethod>.<serviceFunction>.handler.ts`
 
 ```
 domain/<name>/
-├── <name>.handler.create.ts
-├── <name>.handler.list.ts
-├── <name>.handler.findById.ts
-├── <name>.handler.update.ts
-├── <name>.handler.delete.ts
-└── <name>.handler.restore.ts
+├── <name>.post.create.handler.ts
+├── <name>.get.list.handler.ts
+├── <name>.get.findById.handler.ts
+├── <name>.put.update.handler.ts
+├── <name>.delete.delete.handler.ts
+└── <name>.patch.restore.handler.ts
 ```
 
 **Why this rule exists:**
@@ -790,18 +835,16 @@ A single `<domain>.handler.ts` grows unboundedly as the domain adds operations. 
 
 One handler function per file is an absolute rule with no gray area. When adding a handler, there is always exactly one correct file name. When reading code, there is always exactly one place to look. Consistency eliminates the decision.
 
-The naming follows the existing `<domain>.<layer>.<specific>.ts` pattern — `handler` stays in the second segment, keeping all handler files grouped together when sorted alphabetically in a file explorer.
-
 Test files mirror the source structure exactly:
 
 ```
 test/domain/<name>/
-├── <name>.handler.create.test.ts
-├── <name>.handler.list.test.ts
-├── <name>.handler.findById.test.ts
-├── <name>.handler.update.test.ts
-├── <name>.handler.delete.test.ts
-└── <name>.handler.restore.test.ts
+├── <name>.post.create.handler.test.ts
+├── <name>.get.list.handler.test.ts
+├── <name>.get.findById.handler.test.ts
+├── <name>.put.update.handler.test.ts
+├── <name>.delete.delete.handler.test.ts
+└── <name>.patch.restore.handler.test.ts
 ```
 
 This rule applies to handlers only. `service.ts` and `repository.ts` remain as single files per domain unless there is a concrete, justified reason to split — which must be documented inline.
@@ -816,7 +859,7 @@ queue/<group>/<worker>/
 ├── <worker>.consumer.ts  ← subscribes to queue, calls handler
 ├── <worker>.handler.ts   ← processes the message
 ├── <worker>.service.ts   ← business logic
-└── <worker>.type.ts      ← message types
+└── <worker>.model.ts     ← message types
 ```
 
 ---
@@ -866,7 +909,7 @@ find(params: { pagination?: { cursor?: string }; filter?: { isActive?: boolean }
 
 ## Logging
 
-Use `pino` as the logger in all projects. In projects with Fastify, use the built-in logger (`fastify({ logger: true })`). In projects without Fastify, instantiate directly:
+Use `pino` as the logger in all projects. Instantiate a global logger in `src/shared/logger.ts`:
 
 ```typescript
 // src/shared/logger.ts
@@ -875,6 +918,8 @@ import { config } from './config.js'
 
 export const log = pino({ level: config.LOG_LEVEL })
 ```
+
+Framework-specific logger integration (e.g. built-in Fastify logger) is defined by each project's architecture document (08+).
 
 First line of every function must be a debug log with the function name as the second argument. No exceptions.
 
@@ -948,7 +993,8 @@ src/
 │       ├── orderItem.service.ts
 │       ├── orderItem.repository.ts
 │       ├── orderItem.schema.ts
-│       └── orderItem.type.ts
+│       ├── orderItem.dto.ts
+│       └── orderItem.model.ts
 └── shared/
     ├── config.ts
     └── logger.ts
@@ -957,6 +1003,22 @@ src/
 Exception: tooling config files in the project root follow each tool's own convention and are never renamed (`tsconfig.json`, `eslint.config.js`, `package.json`, `vitest.config.ts`).
 
 Never use `kebab-case`, `snake_case`, or `PascalCase` for file or directory names.
+
+### Domain vocabulary
+
+Three terms have precise meaning across all projects. Use them consistently — in file names, type names, and conversation.
+
+**Schema** — a Zod validation object (`z.object({...})`). Always means Zod. Never use this word to refer to a database structure or an ORM definition. ORM-specific structures (Mongoose schema, Prisma model, TypeORM entity) are internal to the repository and never named `Schema` outside it.
+
+**Model** — the domain entity type. The TypeScript type that the repository returns and the service operates on. Technology-agnostic — it does not know about the ORM, the HTTP framework, or the database. Lives in `<domain>.model.ts`.
+
+**Dto** — Data Transfer Object. The shape of data at the HTTP boundary: what enters in the request and what leaves in the response. The rest of the application never depends on a Dto type. Lives in `<domain>.dto.ts`.
+
+```
+UserModel   ← what the repository returns, what the service uses
+UserSchema  ← Zod validation object (may be used in any layer)
+UserDto     ← what the HTTP handler receives or returns
+```
 
 ---
 

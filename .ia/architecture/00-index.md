@@ -18,6 +18,8 @@ Files numbered 01-29 are base conventions. Files numbered 30+ are project-specif
 | # | Name | Scope | File |
 |---|------|-------|------|
 | 02 | Node.js + TypeScript | Before writing or modifying any Node.js + TypeScript code | [02-nodejs-typescript.md](02-nodejs-typescript.md) |
+| 07 | ~~NestJS + Fastify~~ | ⚠️ Deprecated — no ESM support. Use 08 instead | [07-nestjs-fastify.md](07-nestjs-fastify.md) |
+| 08 | Fastify | Before writing or modifying any Fastify backend code | [08-fastify.md](08-fastify.md) |
 
 ## React Native / Mobile
 
