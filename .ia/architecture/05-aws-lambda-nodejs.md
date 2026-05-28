@@ -48,3 +48,9 @@ const accountId = requirePathParam(event, 'accountId')  // ✅
 const accountId = requirePathParam(event, 'accountId')  // ❌ — returns undefined
 const id = requirePathParam(event, 'id')                // ✅ — but {id} is wrong to begin with
 ```
+
+---
+
+## Language
+
+**Best practice: all identifiers in English.** Function names, variable names, path parameter names, handler file names, and any other code-level identifiers must be written in English. The only exception is when the human explicitly and deliberately requests otherwise.

@@ -1024,7 +1024,7 @@ UserDto     ← what the HTTP handler receives or returns
 
 ## Language
 
-All code, identifiers, field names, log messages, error codes, queue names, and event types must be in English. No exceptions.
+All code identifiers — variables, functions, type names, interfaces, file names, field names, log messages, error codes, queue names, and event types — must be in English. This is a best practice for consistency, readability, and tool compatibility. The only exception is when the human explicitly and deliberately requests otherwise.
 
 ```typescript
 // correct

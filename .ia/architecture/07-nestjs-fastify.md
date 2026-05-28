@@ -671,6 +671,12 @@ NestJS's built-in `HttpException` is never used — all errors extend `AppError`
 
 ---
 
+## Language
+
+**Best practice: all identifiers in English.** Class names, method names, variable names, file names, module names, decorator names, and any other code-level identifiers must be written in English. The only exception is when the human explicitly and deliberately requests otherwise.
+
+---
+
 ## Testing
 
 Follow the philosophy in [02-nodejs-typescript.md](./02-nodejs-typescript.md) — real infrastructure, highest level possible, 100% coverage.

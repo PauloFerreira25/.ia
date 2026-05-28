@@ -704,6 +704,12 @@ export const generateUUIDv7 = (): string => uuidv7()
 
 ---
 
+## Language
+
+**Best practice: all identifiers in English.** This rule is inherited from [02-nodejs-typescript.md](./02-nodejs-typescript.md) and applies here without exception: function names, variable names, route paths, handler names, type names, file names, error codes, and log messages must be written in English. The only exception is when the human explicitly and deliberately requests otherwise.
+
+---
+
 ## Project-specific (`30+`) checklist
 
 Every Fastify project must document the following in a `30+` file:

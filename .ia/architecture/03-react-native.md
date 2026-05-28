@@ -198,6 +198,14 @@ Private + Admin + Users + Add  → PrivateAdminUsersAddScreen
 
 ---
 
+### Idioma dos identificadores
+
+**Boa prática: todos os identificadores em inglês.** Nomes de variáveis, funções, componentes, types, interfaces, arquivos, stores, services, hooks, utils e qualquer outro elemento do código devem ser escritos em inglês. Isso promove consistência, facilita leitura por ferramentas e integrações internacionais, e elimina ambiguidade em equipes mistas.
+
+**Exceção: quando o humano pedir explicitamente.** Se o humano solicitar nomes em outro idioma de forma deliberada, respeite a decisão. A regra padrão é inglês — qualquer desvio deve ser solicitado de forma explícita.
+
+---
+
 ### Linting
 
 Todo projeto deve ter um linter configurado. Rodar antes de commitar — o comando depende do projeto, consulte o `package.json`.

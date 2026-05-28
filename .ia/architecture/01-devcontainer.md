@@ -67,3 +67,7 @@ All VSCode settings, extensions, and configurations must be defined in `.devcont
 Never create or modify files in the `.vscode/` directory for this purpose.
 
 This ensures VSCode configuration is tied to the containerized environment and consistent across all developers using the devcontainer.
+
+## Language
+
+**Best practice: all identifiers in English.** Service names, container names, volume names, file names, and any configuration keys defined in devcontainer files must be written in English. The only exception is when the human explicitly and deliberately requests otherwise.
