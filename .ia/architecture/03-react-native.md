@@ -5,66 +5,66 @@ description: "Read before writing or modifying any React Native / Expo code."
 
 # React Native + Expo Architecture
 
-> Documento base para projetos React Native. Descreve decisões de arquitetura, convenções e responsabilidades de cada camada. Exemplos e configurações usam Expo por ser o toolchain mais adotado — adapte onde necessário se o projeto não usar Expo. Leia antes de escrever ou modificar qualquer tela, componente, service, store ou arquivo de navegação.
+> Base document for React Native projects. Describes architectural decisions, conventions, and responsibilities of each layer. Examples and configurations use Expo as the toolchain — adapt where necessary if the project does not use Expo. Read before writing or modifying any screen, component, service, store, or navigation file.
 >
-> **Este documento prescreve como fazer — não descreve o que já está feito.** O que vale é a regra, não o exemplo. O estado atual do projeto pode diferir; o objetivo é convergir para estas diretrizes.
+> **This document prescribes how to do things — it does not describe what has already been done.** The rule is what matters, not the example. The current state of the project may differ; the goal is to converge toward these guidelines.
 >
-> **Valores de domínio nos exemplos são sempre ilustrativos.** Nomes de stores, namespaces de logger, códigos de erro, nomes de telas, estruturas de pastas — quando aparecem em exemplos, mostram o padrão a seguir, não os valores obrigatórios. O projeto define os valores concretos; o documento define a estrutura.
+> **Domain values in examples are always illustrative.** Store names, logger namespaces, error codes, screen names, folder structures — when they appear in examples, they show the pattern to follow, not the required values. The project defines the concrete values; the document defines the structure.
 >
-> **Sobre diretrizes que parecem específicas de projeto:** algumas decisões deste documento (como o formato do envelope HTTP ou o comportamento do cliente de autenticação) são boas práticas consolidadas, não imposições de um projeto específico. Quando não houver um documento de projeto que substitua ou complemente uma dessas diretrizes, esta é a regra vigente. Documentos numerados `30+` podem sobrescrever ou estender qualquer parte deste documento.
+> **On guidelines that seem project-specific:** some decisions in this document (such as the HTTP response envelope format or the behavior of the authentication client) are established best practices, not impositions from a specific project. When there is no project document that replaces or complements one of these guidelines, this is the current rule. Documents numbered `30+` may override or extend any part of this document.
 
 ---
 
-## Índice
+## Index
 
-| Seção                           | Conteúdo                                                                                                                           | Quando ler                                                                                          |
-| ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| **S1 — Filosofia e Padrões**    | Princípios gerais, TypeScript, Atomic Design, type safety, convenções de nomes, linting, logs, performance, testes                 | Sempre — qualquer task                                                                              |
-| **S2 — Infraestrutura**         | Dependências, estrutura de pastas, camadas (tela / service / HTTP / store / context), navegação, tema, config, types, hooks, utils | Ao criar ou alterar estrutura, novos arquivos, novas camadas                                        |
-| **S3 — Implementação**          | `authStore`, stores de domínio (bootstrap/clear), erros críticos e telas de erro                                                   | Somente ao implementar ou dar manutenção em: auth, sessão, bootstrap, fluxo de login, telas de erro |
-| **S4 — Padrões de Interação**   | Loading (local + overlay global), erros (tipos, hooks, toast), estados vazios, formulários (validação, hooks de ação)              | Ao implementar qualquer tela com loading, erro, lista vazia ou formulário                           |
+| Section | Content | When to read |
+| --- | --- | --- |
+| **S1 — Philosophy and Patterns** | General principles, TypeScript, Atomic Design, type safety, naming conventions, linting, logs, performance, tests | Always — any task |
+| **S2 — Infrastructure** | Dependencies, folder structure, layers (screen / service / HTTP / store / context), navigation, theme, config, types, hooks, utils | When creating or changing structure, new files, new layers |
+| **S3 — Implementation** | `authStore`, domain stores (bootstrap/clear), critical errors and error screens | Only when implementing or maintaining: auth, session, bootstrap, login flow, error screens |
+| **S4 — Interaction Patterns** | Loading (local + global overlay), errors (types, hooks, toast), empty states, forms (validation, action hooks) | When implementing any screen with loading, error, empty list, or form |
 
-**Mapeamento task → seção:**
+**Task → section mapping:**
 
-- Criar ou editar qualquer tela, componente, hook, util → **S1 + S2 + S4**
-- Dúvida sobre onde colocar um arquivo ou qual camada usar → **S2**
-- Implementar login, logout, bootstrap, tela de erro → **S1 + S2 + S3**
-- Dar manutenção em `authStore`, `AuthContext`, `errorStore` → **S3**
-- Implementar formulário, loading, feedback de erro ou estado vazio → **S4**
+- Create or edit any screen, component, hook, util → **S1 + S2 + S4**
+- Unsure where to place a file or which layer to use → **S2**
+- Implement login, logout, bootstrap, error screen → **S1 + S2 + S3**
+- Maintain `authStore`, `AuthContext`, `errorStore` → **S3**
+- Implement form, loading, error feedback, or empty state → **S4**
 
 ---
 
-## S1 — Filosofia e Padrões
+## S1 — Philosophy and Patterns
 
-### Filosofia
+### Philosophy
 
-As mesmas decisões que guiam o backend, adaptadas para o frontend:
+The same decisions that guide the backend, adapted for the frontend:
 
-**Produção primeiro.** Toda decisão é tomada pensando no comportamento em produção. Conforto de desenvolvimento (mocks, atalhos de navegação, dados fixos) é temporário e nunca deve chegar à versão final.
+**Production first.** Every decision is made with production behavior in mind. Development convenience (mocks, navigation shortcuts, fixed data) is temporary and must never reach the final version.
 
-**Consistência elimina decisão.** Quando o custo de decidir caso a caso é maior do que aplicar uniformemente, a regra vira absoluta. Onde buscar dados, como tratar erros, onde guardar estado, como estruturar a UI — essas respostas são sempre as mesmas.
+**Consistency eliminates decisions.** When the cost of deciding case by case is higher than applying uniformly, the rule becomes absolute. Where to fetch data, how to handle errors, where to store state, how to structure the UI — these answers are always the same.
 
-**Explícito sobre implícito.** Tipos declarados em interfaces nomeadas. Nenhum campo inferido de `any`. Estado global declarado em stores com interface explícita.
+**Explicit over implicit.** Types declared in named interfaces. No field inferred from `any`. Global state declared in stores with explicit interfaces.
 
-**Mock é scaffolding, não arquitetura.** Mocks existem para permitir que o frontend avance antes do backend estar pronto. Todo mock tem uma data de validade: o momento em que o endpoint real for entregue. Nunca adicione lógica de negócio em um mock.
+**Mock is scaffolding, not architecture.** Mocks exist to let the frontend advance before the backend is ready. Every mock has an expiration date: the moment the real endpoint is delivered. Never add business logic to a mock.
 
-**Reutilizar antes de criar.** Antes de escrever qualquer coisa, verificar se já existe no projeto — ou nas libs instaladas — um componente, hook, util, service ou tipo que resolva o problema. A busca começa em `utils/` e `hooks/` para lógica pura e com estado, nos níveis do Atomic Design para UI, e nas APIs das bibliotecas instaladas.
+**Reuse before creating.** Before writing anything, check whether a component, hook, util, service, or type already exists in the project — or in installed libraries — that solves the problem. The search starts in `utils/` and `hooks/` for pure and stateful logic, in the Atomic Design levels for UI, and in the APIs of installed libraries.
 
-**Não existe? Pergunte antes de criar.** Se o componente necessário não existe no projeto nem nas libs instaladas, não crie por conta própria. Pergunte ao usuário: o que esse componente deve fazer, como deve se comportar, quais variações precisa suportar, onde será usado. Criar um componente sem essas respostas é prototipar — e este não é um projeto de prototipação.
+**Doesn't exist? Ask before creating.** If the needed component does not exist in the project or installed libraries, do not create it on your own. Ask the user: what should this component do, how should it behave, what variations does it need to support, where will it be used. Creating a component without these answers is prototyping — and this is not a prototyping project.
 
-**Projeto real, não protótipo.** A solução mais curta raramente é a correta. O critério não é "funciona agora" — é "funciona bem, é consistente e pode ser mantido". Atalhos que economizam minutos criam horas de retrabalho.
+**Real project, not a prototype.** The shortest solution is rarely the correct one. The criterion is not "works now" — it is "works well, is consistent, and can be maintained". Shortcuts that save minutes create hours of rework.
 
-**Subdiretórios são preferíveis a arquivos acumulados.** Um diretório com poucos arquivos bem nomeados é mais navegável do que um diretório com dezenas de arquivos planos. Organize por domínio desde o início — é mais fácil expandir uma estrutura já segmentada do que refatorar um diretório caótico depois.
+**Subdirectories are preferable to accumulated files.** A directory with a few well-named files is more navigable than one with dozens of flat files. Organize by domain from the start — it is easier to expand an already-segmented structure than to refactor a chaotic directory later.
 
-**Separação de responsabilidade.** Cada camada tem uma responsabilidade e não ultrapassa sua fronteira. A tela não faz chamadas HTTP. O service não conhece navegação. O store não conhece a API. O componente não conhece o store.
+**Separation of concerns.** Each layer has one responsibility and does not cross its boundary. The screen does not make HTTP calls. The service does not know about navigation. The store does not know about the API. The component does not know about the store.
 
-**UI construída em camadas.** A interface segue o modelo Atomic Design: atoms formam molecules, molecules formam organisms, organisms compõem layouts, layouts sustentam screens. Nenhuma camada pula um nível. Essa hierarquia garante que mudar um atom propaga a mudança para todo o sistema de forma previsível.
+**UI built in layers.** The interface follows the Atomic Design model: atoms form molecules, molecules form organisms, organisms compose layouts, layouts sustain screens. No layer skips a level. This hierarchy ensures that changing an atom propagates the change to the entire system in a predictable way.
 
 ---
 
 ### TypeScript
 
-O projeto usa a configuração base do Expo (`expo/tsconfig.base`) com `strict: true`. Não alterar as opções do compilador sem justificativa documentada.
+The project uses the base Expo config (`expo/tsconfig.base`) with `strict: true`. Do not change compiler options without documented justification.
 
 ```json
 {
@@ -81,7 +81,7 @@ O projeto usa a configuração base do Expo (`expo/tsconfig.base`) com `strict: 
 
 #### Path alias
 
-Use `@/` como alias para `src/`. Nunca use caminhos relativos com `../` para importar fora do diretório atual.
+Use `@/` as an alias for `src/`. Never use relative paths with `../` to import from outside the current directory.
 
 ```typescript
 // wrong
@@ -95,32 +95,32 @@ import { theme } from "@/theme";
 
 ### Atomic Design
 
-A UI do projeto segue o modelo **Atomic Design**. Cada peça de interface pertence a exatamente um nível, e esse nível define seu contrato de responsabilidade.
+The project UI follows the **Atomic Design** model. Each piece of interface belongs to exactly one level, and that level defines its responsibility contract.
 
-| Nível        | Onde                   | Descrição                                                                                                                                       |
-| ------------ | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Atom**     | `components/atom/`     | Peça mínima e indivisível. Sem composição de outros componentes do projeto. Exemplos: `Button`, `Badge`, `Avatar`, `Input`.                     |
-| **Molecule** | `components/molecule/` | Composição de atoms com um propósito único. Exemplos: `SearchBar` (input + botão), `ListItem` (avatar + texto + badge).                         |
-| **Organism** | `components/organism/` | Seção completa e autossuficiente, composta de atoms e molecules. Exemplos: `UserCard`, tabela com header e paginação.                           |
-| **Layout**   | `layouts/`             | Esqueleto estrutural da tela — define onde ficam header, conteúdo e footer. Não contém dados. Exemplos: `ListScreenLayout`, `FormScreenLayout`. |
-| **Screen**   | `screens/`             | A tela em si. Usa um layout, compõe organisms/molecules/atoms, busca dados via services e lida com navegação.                                   |
+| Level | Location | Description |
+| --- | --- | --- |
+| **Atom** | `components/atom/` | Minimum and indivisible piece. No composition of other project components. Examples: `Button`, `Badge`, `Avatar`, `Input`. |
+| **Molecule** | `components/molecule/` | Composition of atoms with a single purpose. Examples: `SearchBar` (input + button), `ListItem` (avatar + text + badge). |
+| **Organism** | `components/organism/` | Complete and self-sufficient section, composed of atoms and molecules. Examples: `UserCard`, table with header and pagination. |
+| **Layout** | `layouts/` | Structural skeleton of the screen — defines where the header, content, and footer are. Contains no data. Examples: `ListScreenLayout`, `FormScreenLayout`. |
+| **Screen** | `screens/` | The screen itself. Uses a layout, composes organisms/molecules/atoms, fetches data via services, and handles navigation. |
 
-#### Regras
+#### Rules
 
-- Cada nível só pode compor elementos do seu nível ou de níveis inferiores. Um atom não usa molecules; uma molecule não usa organisms.
-- Dentro de cada nível (`atom/`, `molecule/`, `organism/`), os componentes são organizados em subdiretórios por categoria funcional (ex: `atom/buttons/`, `atom/badges/`).
-- Nenhum componente abaixo de Screen conhece navegação, stores ou services.
-- Antes de criar qualquer componente novo, verificar se já existe um no nível adequado que resolva o problema.
-- **Componentes de libs podem ser usados em qualquer nível.** Atoms, molecules e organisms podem usar diretamente componentes das libs instaladas.
-- **Só crie um componente se for uma especialização.** Se a lib já oferece um `Button`, use-o diretamente. Crie um `atom/buttons/BtnConfirm` apenas se houver comportamento ou estilo específico do projeto que justifique a especialização. Wrappers sem propósito são proibidos.
+- Each level can only compose elements from its own level or lower. An atom does not use molecules; a molecule does not use organisms.
+- Within each level (`atom/`, `molecule/`, `organism/`), components are organized in subdirectories by functional category (e.g., `atom/buttons/`, `atom/badges/`).
+- No component below Screen knows about navigation, stores, or services.
+- Before creating any new component, check whether one already exists at the appropriate level that solves the problem.
+- **Library components can be used at any level.** Atoms, molecules, and organisms can directly use components from installed libraries.
+- **Only create a component if it is a specialization.** If the library already provides a `Button`, use it directly. Create an `atom/buttons/BtnConfirm` only if there is project-specific behavior or style that justifies the specialization. Purposeless wrappers are prohibited.
 
 ---
 
 ### Type safety
 
-#### Sem `any`
+#### No `any`
 
-Nunca use `any`. Se o tipo não é conhecido, use `unknown` e faça narrowing antes de usar o valor.
+Never use `any`. If the type is not known, use `unknown` and narrow before using the value.
 
 ```typescript
 // wrong
@@ -132,9 +132,9 @@ const err = e as Error & { code?: string };
 console.log(err.code);
 ```
 
-#### Sem `as` para cast de tipos de domínio
+#### No `as` for domain type casting
 
-Nunca use `as` para forçar um tipo de domínio em um valor desconhecido. Use type guards quando necessário.
+Never use `as` to force a domain type on an unknown value. Use type guards when necessary.
 
 ```typescript
 // wrong
@@ -151,15 +151,15 @@ function isAccount(value: unknown): value is Account {
 }
 ```
 
-O operador `as` é permitido apenas em um caso pontual: interop com bibliotecas sem tipos adequados — documentado com comentário inline explicando o motivo. Para props do React Navigation, o tipo correto vem do ParamList via `StackScreenProps` ou `useRoute<RouteProp<...>>` — sem necessidade de `as`.
+The `as` operator is only allowed in one specific case: interop with libraries that lack proper types — documented with an inline comment explaining the reason. For React Navigation props, the correct type comes from the ParamList via `StackScreenProps` or `useRoute<RouteProp<...>>` — no `as` needed.
 
 ---
 
-### Nomes de arquivos e convenções
+### File names and conventions
 
-**Regra base: tudo é `camelCase`.** A única exceção são arquivos que exportam componentes React (telas, atoms, molecules, organisms, layouts, navigators) — esses usam `PascalCase` porque o React exige que componentes comecem com letra maiúscula. Componentes com letra minúscula são interpretados como elementos HTML e não funcionam.
+**Base rule: everything is `camelCase`.** The only exception is files that export React components (screens, atoms, molecules, organisms, layouts, navigators) — these use `PascalCase` because React requires components to start with a capital letter. Components starting with a lowercase letter are interpreted as HTML elements and do not work.
 
-**Nomes de telas e stacks encapsulam a hierarquia de acesso.** O nome começa com o nível de acesso (`Public` ou `Private`), seguido do domínio e da ação — formando uma cadeia que é autodocumentada e elimina colisões entre telas de domínios diferentes.
+**Screen and stack names encapsulate the access hierarchy.** The name starts with the access level (`Public` or `Private`), followed by the domain and the action — forming a chain that is self-documenting and eliminates collisions between screens from different domains.
 
 ```
 Public  + Auth  + Login        → PublicAuthLoginScreen
@@ -168,57 +168,57 @@ Private + Admin + Users        → PrivateAdminUsersScreen
 Private + Admin + Users + Add  → PrivateAdminUsersAddScreen
 ```
 
-`PrivateAdminUsersAddScreen` é diferente de `PrivateUsersAddScreen` — o domínio `Admin` está no nome, não apenas no diretório.
+`PrivateAdminUsersAddScreen` is different from `PrivateUsersAddScreen` — the `Admin` domain is in the name, not just in the directory.
 
-**Arquivos:**
+**Files:**
 
-| Tipo      | Convenção                                                               | Exemplo                                   |
-| --------- | ----------------------------------------------------------------------- | ----------------------------------------- |
-| Tela      | `PascalCase` + `Screen.tsx` seguindo hierarquia de acesso               | `PrivateAdminUsersScreen.tsx`             |
-| Stack     | `PascalCase` + `Stack.tsx` seguindo hierarquia de acesso                | `PrivateAdminStack.tsx`                   |
-| Atom      | `PascalCase.tsx` dentro de `atom/<categoria>/`                          | `atom/buttons/BtnBack.tsx`                |
-| Molecule  | `PascalCase.tsx` dentro de `molecule/<categoria>/`                      | `molecule/cards/EventoCard.tsx`           |
-| Organism  | `PascalCase.tsx` dentro de `organism/<categoria>/`                      | `organism/lists/PessoasList.tsx`          |
-| Layout    | `PascalCase` + `Layout.tsx` dentro de `layouts/<categoria>/`            | `layouts/forms/FormScreenLayout.tsx`      |
-| Navigator | `PascalCase.tsx`                                                        | `AppNavigator.tsx`, `PrivateMainTabs.tsx` |
-| Context   | `PascalCase` + `Context.tsx`                                            | `AuthContext.tsx`                         |
-| Service   | `camelCase` + `Service.ts`                                              | `userService.ts`                          |
-| Mock      | `camelCase` + `Service.mock.ts`                                         | `userService.mock.ts`                     |
-| Store     | `camelCase` + `Store.ts`                                                | `authStore.ts`                            |
-| Tipo      | `camelCase.ts` dentro de `types/<domínio>/`                             | `types/user/user.model.ts`                |
-| Config    | `camelCase.ts`                                                          | `config/index.ts`                         |
-| Hook      | `camelCase` com prefixo `use` + `.ts` dentro de `hooks/<domínio>/`      | `hooks/commons/modal/useGenericModal.ts`  |
-| Util      | `camelCase` descrevendo a operação + `.ts` dentro de `utils/<domínio>/` | `utils/dateTime/formatter.ts`             |
+| Type | Convention | Example |
+| --- | --- | --- |
+| Screen | `PascalCase` + `Screen.tsx` following access hierarchy | `PrivateAdminUsersScreen.tsx` |
+| Stack | `PascalCase` + `Stack.tsx` following access hierarchy | `PrivateAdminStack.tsx` |
+| Atom | `PascalCase.tsx` inside `atom/<category>/` | `atom/buttons/BtnBack.tsx` |
+| Molecule | `PascalCase.tsx` inside `molecule/<category>/` | `molecule/cards/EventCard.tsx` |
+| Organism | `PascalCase.tsx` inside `organism/<category>/` | `organism/lists/UserList.tsx` |
+| Layout | `PascalCase` + `Layout.tsx` inside `layouts/<category>/` | `layouts/forms/FormScreenLayout.tsx` |
+| Navigator | `PascalCase.tsx` | `AppNavigator.tsx`, `PrivateMainTabs.tsx` |
+| Context | `PascalCase` + `Context.tsx` | `AuthContext.tsx` |
+| Service | `camelCase` + `Service.ts` | `userService.ts` |
+| Mock | `camelCase` + `Service.mock.ts` | `userService.mock.ts` |
+| Store | `camelCase` + `Store.ts` | `authStore.ts` |
+| Type | `camelCase.ts` inside `types/<domain>/` | `types/user/user.model.ts` |
+| Config | `camelCase.ts` | `config/index.ts` |
+| Hook | `camelCase` with `use` prefix + `.ts` inside `hooks/<domain>/` | `hooks/commons/modal/useGenericModal.ts` |
+| Util | `camelCase` describing the operation + `.ts` inside `utils/<domain>/` | `utils/dateTime/formatter.ts` |
 
-**Identificadores no código:**
+**Code identifiers:**
 
-- `camelCase` — variáveis, funções, parâmetros, propriedades de objetos, exports de services e stores
-- `PascalCase` — componentes React (obrigação do React), interfaces e type aliases
-- Nomes descritivos e autoexplicativos — evite abreviações. Use apenas as amplamente reconhecidas pela comunidade. Nunca crie abreviações novas.
+- `camelCase` — variables, functions, parameters, object properties, service and store exports
+- `PascalCase` — React components (React requirement), interfaces and type aliases
+- Descriptive and self-explanatory names — avoid abbreviations. Only use those widely recognized by the community. Never create new abbreviations.
 
 ---
 
-### Idioma dos identificadores
+### Identifier language
 
-**Boa prática: todos os identificadores em inglês.** Nomes de variáveis, funções, componentes, types, interfaces, arquivos, stores, services, hooks, utils e qualquer outro elemento do código devem ser escritos em inglês. Isso promove consistência, facilita leitura por ferramentas e integrações internacionais, e elimina ambiguidade em equipes mistas.
+**Best practice: all identifiers in English.** Variable names, functions, components, types, interfaces, files, stores, services, hooks, utils, and any other code element must be written in English. This promotes consistency, facilitates readability by tools and international integrations, and eliminates ambiguity in mixed teams.
 
-**Exceção: quando o humano pedir explicitamente.** Se o humano solicitar nomes em outro idioma de forma deliberada, respeite a decisão. A regra padrão é inglês — qualquer desvio deve ser solicitado de forma explícita.
+**Exception: when the human explicitly requests it.** If the human deliberately requests names in another language, respect the decision. The default rule is English — any deviation must be explicitly requested.
 
 ---
 
 ### Linting
 
-Todo projeto deve ter um linter configurado. Rodar antes de commitar — o comando depende do projeto, consulte o `package.json`.
+Every project must have a linter configured. Run before committing — the command depends on the project, check `package.json`.
 
-Erros de lint não são warnings — são erros. O CI rejeita código com erros de lint. Configuração específica do linter (regras, plugins, extends) é definida pelo projeto.
+Lint errors are not warnings — they are errors. CI rejects code with lint errors. Linter-specific configuration (rules, plugins, extends) is defined by the project.
 
 ---
 
 ### Logs
 
-Todo log do projeto passa pelo `logger` — nunca use `console.log`, `console.info` ou `console.warn` diretamente no código. Logs diretos no console não têm controle de nível, não têm namespace e não podem ser desligados em produção.
+All project logs go through the `logger` — never use `console.log`, `console.info`, or `console.warn` directly in the code. Direct console logs have no level control, no namespace, and cannot be turned off in production.
 
-A biblioteca padrão recomendada é `react-native-logs` por suportar níveis, transportes configuráveis por ambiente e loggers com namespace. Se o projeto usar outra solução, documente no arquivo de padrões do projeto (`30+`).
+The recommended default library is `react-native-logs` because it supports levels, configurable transports by environment, and namespace loggers. If the project uses another solution, document it in the project standards file (`30+`).
 
 ```typescript
 // utils/logger/logger.ts
@@ -237,18 +237,18 @@ export const logger = {
 ```
 
 ```typescript
-// uso — em qualquer arquivo do projeto
-logger.auth.debug("bootstrap iniciado");
-logger.service.error("falha ao buscar produtos", error);
+// usage — in any project file
+logger.auth.debug("bootstrap started");
+logger.service.error("failed to fetch products", error);
 ```
 
-`__DEV__` é uma variável global do React Native — `true` em desenvolvimento, `false` em produção. Use-a para configurar o transporte do logger por ambiente.
+`__DEV__` is a React Native global variable — `true` in development, `false` in production. Use it to configure the logger transport by environment.
 
-Regras:
+Rules:
 
-- Nunca commitar `console.log` — o linter deve bloquear
-- `logger.error` e `logger.warn` podem ser ativos em produção (enviados para serviço de monitoramento)
-- `logger.debug` e `logger.info` são silenciados em produção por padrão
+- Never commit `console.log` — the linter must block it
+- `logger.error` and `logger.warn` can be active in production (sent to monitoring service)
+- `logger.debug` and `logger.info` are silenced in production by default
 
 ---
 
@@ -256,120 +256,120 @@ Regras:
 
 #### ScrollView vs FlatList
 
-Esta é a armadilha de performance mais comum no React Native. A escolha errada trava o app com listas grandes.
+This is the most common performance pitfall in React Native. The wrong choice freezes the app with large lists.
 
-| Componente    | Renderiza                                | Use quando                                                             |
-| ------------- | ---------------------------------------- | ---------------------------------------------------------------------- |
-| `ScrollView`  | **Todos os filhos de uma vez**           | Conteúdo fixo e pequeno — formulários, telas de detalhe, configurações |
-| `FlatList`    | **Só o que está visível** (virtualizado) | Listas de dados dinâmicos — qualquer coisa que vem de uma API          |
-| `SectionList` | **Só o que está visível**, com seções    | Listas agrupadas por categoria                                         |
+| Component | Renders | Use when |
+| --- | --- | --- |
+| `ScrollView` | **All children at once** | Fixed and small content — forms, detail screens, settings |
+| `FlatList` | **Only what is visible** (virtualized) | Dynamic data lists — anything that comes from an API |
+| `SectionList` | **Only what is visible**, with sections | Lists grouped by category |
 
-**Regra:** se o conteúdo vem de uma API ou pode crescer, use `FlatList`. `ScrollView` com muitos itens renderiza tudo na memória e trava a UI.
+**Rule:** if the content comes from an API or can grow, use `FlatList`. `ScrollView` with many items renders everything in memory and freezes the UI.
 
 ```typescript
-// wrong — trava com listas grandes
+// wrong — freezes with large lists
 <ScrollView>
-  {produtos.map(p => <ProdutoCard key={p.id} produto={p} />)}
+  {products.map(p => <ProductCard key={p.id} product={p} />)}
 </ScrollView>
 
-// correct — renderiza só o visível
+// correct — renders only what is visible
 <FlatList
-  data={produtos}
+  data={products}
   keyExtractor={p => p.id}
-  renderItem={({ item }) => <ProdutoCard produto={item} />}
+  renderItem={({ item }) => <ProductCard product={item} />}
 />
 ```
 
-#### Otimizações de renderização (`React.memo`, `useCallback`, `useMemo`)
+#### Render optimizations (`React.memo`, `useCallback`, `useMemo`)
 
-O React re-renderiza componentes filhos quando o pai re-renderiza. Em alguns cenários isso é desnecessário e causa lentidão — `React.memo`, `useCallback` e `useMemo` existem para evitar isso.
+React re-renders child components when the parent re-renders. In some scenarios this is unnecessary and causes slowness — `React.memo`, `useCallback`, and `useMemo` exist to prevent this.
 
-**Não aplique essas otimizações por padrão.** Elas adicionam complexidade e na maioria dos casos o React é rápido o suficiente sem elas. Usadas sem necessidade real, complicam o código sem benefício.
+**Do not apply these optimizations by default.** They add complexity and in most cases React is fast enough without them. Used without real need, they complicate the code without benefit.
 
-**Se identificar um cenário onde parecem necessárias, não decida sozinho — apresente o caso ao usuário e valide antes de aplicar.** O critério é: existe um problema de performance medido ou claramente visível? Se não, não use.
-
----
-
-### Testes
-
-Teste que não encontra bugs reais não tem valor. Não crie testes para atingir cobertura — crie testes para garantir comportamento.
-
-**Nível mais alto possível.** O teste certo para uma tela é um teste E2E que simula o usuário usando o app — ele cobre tela, store e service ao mesmo tempo, como o handler test cobre handler, service e repository no backend. Testes de componente em isolamento raramente compensam o custo de manutenção.
-
-| O que testar         | Nível | Justificativa                                                                                  |
-| -------------------- | ----- | ---------------------------------------------------------------------------------------------- |
-| `utils/`             | Unit  | Funções puras, sem UI, fácil de testar e alto valor                                            |
-| Fluxos de tela       | E2E   | Cobre tudo de uma vez, é o "usuário usando"                                                    |
-| Componentes isolados | —     | Evitar — E2E já cobre, e testes de componente tendem a testar implementação, não comportamento |
-
-A configuração de ferramentas de teste (Jest, Maestro, Detox) é definida pelo projeto no arquivo `30+`.
+**If you identify a scenario where they seem necessary, do not decide alone — present the case to the user and validate before applying.** The criterion is: is there a measured or clearly visible performance problem? If not, do not use.
 
 ---
 
-### Padrões visuais do projeto (`XX-ui-patterns.md`)
+### Tests
 
-Este documento cobre arquitetura e princípios — decisões que valem para qualquer projeto React Native. Decisões visuais específicas do projeto pertencem a um documento separado, numerado na faixa `30+`, seguindo o índice em `00-index.md`.
+A test that does not find real bugs has no value. Do not create tests to achieve coverage — create tests to guarantee behavior.
 
-**Todo projeto que usa este documento base deve criar seu próprio arquivo de padrões visuais.** Sem ele, cada tela inventa sua própria resposta para situações recorrentes — e a inconsistência é inevitável.
+**Highest level possible.** The right test for a screen is an E2E test that simulates the user using the app — it covers the screen, store, and service all at once, just as the handler test covers handler, service, and repository in the backend. Isolated component tests rarely justify the maintenance cost.
 
-Esse arquivo cobre as decisões que se repetem em toda tela mas que dependem do design do projeto. Exemplos do que precisa ser definido lá:
+| What to test | Level | Justification |
+| --- | --- | --- |
+| `utils/` | Unit | Pure functions, no UI, easy to test and high value |
+| Screen flows | E2E | Covers everything at once, it is the "user using" |
+| Isolated components | — | Avoid — E2E already covers it, and component tests tend to test implementation, not behavior |
 
-- Como exibir estado de carregamento
-- Como exibir erros ao usuário
-- Como exibir listas vazias
-- Como estruturar formulários e exibir erros de validação
-
-A lista não é fechada. Sempre que uma situação recorrente não tiver resposta definida, a decisão vai para esse arquivo — não fica implícita no código.
+Test tool configuration (Jest, Maestro, Detox) is defined by the project in the `30+` file.
 
 ---
 
-## S2 — Infraestrutura
+### Project visual patterns (`XX-ui-patterns.md`)
 
-### Dependências e bibliotecas
+This document covers architecture and principles — decisions that apply to any React Native project. Project-specific visual decisions belong in a separate document, numbered in the `30+` range, following the index in `00-index.md`.
 
-Este é um projeto real e de longo prazo — não uma prototipação. Toda decisão deve considerar manutenibilidade, consistência e escala.
+**Every project that uses this base document must create its own visual patterns file.** Without it, each screen invents its own answer to recurring situations — and inconsistency is inevitable.
 
-**Leia o `package.json` antes de escrever qualquer coisa.** As bibliotecas instaladas definem o vocabulário do projeto. Elas já resolvem navegação, estado, UI, persistência, requisições HTTP. O trabalho é compor essas soluções, não reinventá-las.
+That file covers decisions that repeat across every screen but depend on the project's design. Examples of what needs to be defined there:
 
-**Use os conceitos que as libs já fornecem.** Se a biblioteca de UI tem variantes de tipografia, use essas variantes — não crie `fontSize` manual. Se a biblioteca de navegação tem um padrão para stack, use esse padrão — não crie navegação própria. Adotar o modelo da lib é sempre preferível a criar um paralelo.
+- How to display loading state
+- How to display errors to the user
+- How to display empty lists
+- How to structure forms and display validation errors
 
-**Antes de instalar uma nova dependência**, verificar se alguma lib já instalada resolve o problema. A adição de dependência deve ser a última opção, não a primeira.
+The list is not closed. Whenever a recurring situation has no defined answer, the decision goes to that file — it does not stay implicit in the code.
 
-#### Instalação de pacotes
+---
 
-Sempre instale pacotes sem especificar versão:
+## S2 — Infrastructure
+
+### Dependencies and libraries
+
+This is a real, long-term project — not a prototype. Every decision must consider maintainability, consistency, and scale.
+
+**Read `package.json` before writing anything.** The installed libraries define the project's vocabulary. They already solve navigation, state, UI, persistence, and HTTP requests. The work is to compose these solutions, not reinvent them.
+
+**Use the concepts the libraries already provide.** If the UI library has typography variants, use those variants — do not create manual `fontSize`. If the navigation library has a pattern for stacks, use that pattern — do not create custom navigation. Adopting the library's model is always preferable to creating a parallel one.
+
+**Before installing a new dependency**, check whether an already installed library solves the problem. Adding a dependency should be the last option, not the first.
+
+#### Package installation
+
+Always install packages without specifying a version:
 
 ```
 npm install <package>
 ```
 
-- Nunca edite o `package.json` manualmente para adicionar uma dependência com versão fixada
-- Especificar versão (`npm install <package>@x.y.z`) só é permitido quando um humano solicitar explicitamente, ou quando outra dependência já instalada exigir aquela versão como peer dependency
+- Never manually edit `package.json` to add a dependency with a pinned version
+- Specifying a version (`npm install <package>@x.y.z`) is only allowed when a human explicitly requests it, or when another installed dependency already requires that version as a peer dependency
 
-Fixar uma versão instala um pacote desatualizado em vez da versão atual, acumulando vulnerabilidades de segurança ao longo do tempo. Todo agente de IA que escreve uma versão diretamente no `package.json` sem executar `npm install` introduz esse risco.
+Pinning a specific version installs an outdated package instead of the current version, accumulating security vulnerabilities over time. Every AI agent that hard-codes a version into `package.json` without running `npm install` introduces this risk.
 
 ---
 
-### Estrutura de pastas
+### Folder structure
 
 ```
 src/
-├── components/      ← peças de UI sem lógica de negócio (Atomic Design)
-│   ├── atom/        ← peças mínimas e indivisíveis
+├── components/      ← UI pieces without business logic (Atomic Design)
+│   ├── atom/        ← minimum and indivisible pieces
 │   │   ├── buttons/
 │   │   ├── badges/
 │   │   └── text/
-│   ├── molecule/    ← composições de atoms com um propósito
+│   ├── molecule/    ← compositions of atoms with a purpose
 │   │   ├── cards/
 │   │   └── list-items/
-│   └── organism/    ← seções completas e autossuficientes
+│   └── organism/    ← complete and self-sufficient sections
 │       └── ...
-├── layouts/         ← templates estruturais de tela
+├── layouts/         ← structural screen templates
 │   ├── forms/       ← FormScreenLayout, FormTabScreenLayout
 │   └── list/        ← ListScreenLayout
-├── config/          ← configurações de ambiente — um único index.ts (veja seção Config)
-├── contexts/        ← React Contexts criados pelo projeto (veja regra abaixo)
-├── navigation/      ← navegação organizada por hierarquia de acesso
+├── config/          ← environment configurations — a single index.ts (see Config section)
+├── contexts/        ← React Contexts created by the project (see rule below)
+├── navigation/      ← navigation organized by access hierarchy
 │   ├── AppNavigator.tsx
 │   ├── public/
 │   │   ├── PublicStack.tsx
@@ -378,59 +378,59 @@ src/
 │   └── private/
 │       ├── PrivateStack.tsx
 │       ├── PrivateMainTabs.tsx
-│       └── <domain>/     ← um subdiretório por área funcional
+│       └── <domain>/     ← one subdirectory per functional area
 │           └── Private<Domain>Stack.tsx
-├── screens/         ← telas espelhando a hierarquia de navegação
+├── screens/         ← screens mirroring the navigation hierarchy
 │   ├── public/
 │   │   ├── auth/    ← PublicAuthLoginScreen, PublicAuthRegisterScreen
 │   │   └── error/   ← PublicErrorGenericScreen, PublicErrorBootstrapScreen
 │   └── private/
 │       ├── <domain>/  ← Private<Domain><Action>Screen
-│       └── ...        ← um subdiretório por área funcional
-├── services/        ← chamadas à API (real + mock)
-├── store/           ← Zustand stores por entidade
-├── theme/           ← tema global (react-native-paper)
-├── types/           ← interfaces e tipos TypeScript, subdiretório por domínio
-│   └── navigation/  ← ParamList de cada stack — um arquivo por stack
-├── hooks/           ← custom hooks reutilizáveis, subdiretório por domínio
-│   ├── commons/     ← hooks genéricos sem domínio específico
-│   └── <domain>/    ← hooks específicos de um domínio
-└── utils/           ← funções puras sem hooks, subdiretório por domínio
+│       └── ...        ← one subdirectory per functional area
+├── services/        ← API calls (real + mock)
+├── store/           ← Zustand stores per entity
+├── theme/           ← global theme (react-native-paper)
+├── types/           ← TypeScript interfaces and types, subdirectory per domain
+│   └── navigation/  ← ParamList for each stack — one file per stack
+├── hooks/           ← reusable custom hooks, subdirectory per domain
+│   ├── commons/     ← generic hooks with no specific domain
+│   └── <domain>/    ← domain-specific hooks
+└── utils/           ← pure functions without hooks, subdirectory per domain
     ├── dateTime/    ← formatter.ts, validator.ts
     └── string/      ← formatter.ts, parser.ts
 ```
 
 ---
 
-### Camadas e responsabilidades
+### Layers and responsibilities
 
-#### Tela (`screens/`)
+#### Screen (`screens/`)
 
-A tela é responsável por:
+The screen is responsible for:
 
-- Renderizar a UI com base no estado local e nos stores
-- Chamar services para buscar ou modificar dados
-- Tratar estados de loading e erro locais
-- Navegar entre telas
+- Rendering the UI based on local state and stores
+- Calling services to fetch or modify data
+- Handling local loading and error states
+- Navigating between screens
 
-A tela **nunca**:
+The screen **never**:
 
-- Faz chamadas HTTP diretamente (não usa `fetch`, não usa `request`)
-- Contém lógica de negócio ou transformação de dados
-- Conhece os detalhes de implementação do service
+- Makes HTTP calls directly (does not use `fetch`, does not use `request`)
+- Contains business logic or data transformation
+- Knows the implementation details of the service
 
 ```typescript
-// wrong — tela chamando fetch diretamente
+// wrong — screen calling fetch directly
 const data = await fetch("/v1/persons");
 
-// correct — tela chamando o service
+// correct — screen calling the service
 const persons = await personService.list();
 ```
 
-**Tratamento de erros na tela.** Toda chamada a um service ou store deve estar dentro de um `try/catch`. A tela é a única camada que decide o que fazer com um erro:
+**Error handling in the screen.** Every call to a service or store must be inside a `try/catch`. The screen is the only layer that decides what to do with an error:
 
-- Erro de negócio (validação falhou, recurso não encontrado, sem permissão) → `useState` local, feedback inline ao usuário
-- Erro crítico (falha irrecuperável, estado inválido) → `useReportCriticalError()` — encapsula `errorStore.setError(erro)` e `navigate('PublicErrorGenericScreen')`
+- Business error (validation failed, resource not found, no permission) → local `useState`, inline feedback to the user
+- Critical error (unrecoverable failure, invalid state) → `useReportCriticalError()` — encapsulates `errorStore.setError(error)` and `navigate('PublicErrorGenericScreen')`
 
 ```typescript
 // correct
@@ -441,67 +441,67 @@ try {
   setPersons(persons);
 } catch (err) {
   if (err instanceof ApiError && err.code === "NOT_FOUND") {
-    setError("Nenhuma pessoa encontrada."); // erro de negócio — feedback inline
+    setError("No person found."); // business error — inline feedback
   } else {
-    reportCriticalError(err); // erro inesperado — errorStore + navigate
+    reportCriticalError(err); // unexpected error — errorStore + navigate
   }
 }
 ```
 
 #### Service (`services/`)
 
-O service é responsável por:
+The service is responsible for:
 
-- Fazer chamadas HTTP via `request()` do `httpClient`
-- Encapsular a URL, método e payload de cada endpoint
-- Retornar os dados tipados para a tela
+- Making HTTP calls via `request()` from `httpClient`
+- Encapsulating the URL, method, and payload for each endpoint
+- Returning typed data to the screen
 
-O service **nunca**:
+The service **never**:
 
-- Conhece navegação ou estado da UI
-- Conhece stores — não importa nem acessa nenhuma store
-- Contém lógica de negócio de domínio (validações de negócio, transformações)
-- É chamado por outro service
+- Knows about navigation or UI state
+- Knows about stores — does not import or access any store
+- Contains domain business logic (business validations, transformations)
+- Is called by another service
 
-**Tratamento de erros no service.** O service pode e deve tratar erros que são de sua responsabilidade — retry em timeout, normalização de códigos de erro HTTP, etc. O que o service nunca faz é capturar um erro fora do seu domínio e descartá-lo silenciosamente. Erros que o service não sabe resolver são sempre propagados ao chamador.
+**Error handling in the service.** The service can and should handle errors that are its responsibility — retry on timeout, normalization of HTTP error codes, etc. What the service never does is silently discard an error outside its domain. Errors the service cannot resolve are always propagated to the caller.
 
-O padrão de service tem dois arquivos, organizados em subdiretórios por domínio. A infraestrutura HTTP fica em `services/api/`, separada dos services de domínio:
+The service pattern has two files, organized in subdirectories per domain. HTTP infrastructure lives in `services/api/`, separate from domain services:
 
 ```
 services/
-├── api/                          ← infraestrutura HTTP — um arquivo por backend
-│   ├── backend.httpClient.ts      ← backend principal
-│   ├── erp.httpClient.ts         ← backend ERP
-│   └── facebook.httpClient.ts    ← API externa
+├── api/                          ← HTTP infrastructure — one file per backend
+│   ├── backend.httpClient.ts      ← main backend
+│   ├── erp.httpClient.ts         ← ERP backend
+│   └── facebook.httpClient.ts    ← external API
 ├── auth/
 │   ├── authService.ts
 │   └── authService.mock.ts
-├── evento/
-│   ├── eventoService.ts
-│   └── eventoService.mock.ts
+├── event/
+│   ├── eventService.ts
+│   └── eventService.mock.ts
 └── user/
     ├── userService.ts
     └── userService.mock.ts
 ```
 
-Cada service de domínio importa o cliente HTTP adequado de `@/services/api/`. Se um service precisar de dois backends, importa dois clientes.
+Each domain service imports the appropriate HTTP client from `@/services/api/`. If a service needs two backends, it imports two clients.
 
-Telas e componentes importam **apenas** o service real. O mock é detalhe de implementação do service.
+Screens and components import **only** the real service. The mock is an implementation detail of the service.
 
 ```typescript
-// xyzService.ts — enquanto o backend não existe
+// xyzService.ts — while the backend does not exist
 import { xyzServiceMock } from "./xyzService.mock";
 
 export const xyzService = {
-  // TODO: backend não implementado — substituir quando endpoint estiver pronto
+  // TODO: backend not implemented — replace when endpoint is ready
   list: () => xyzServiceMock.list(),
 };
 ```
 
-Quando o endpoint estiver pronto, o mock é removido e o arquivo `.mock.ts` é deletado:
+When the endpoint is ready, the mock is removed and the `.mock.ts` file is deleted:
 
 ```typescript
-// xyzService.ts — backend implementado, sem mock
+// xyzService.ts — backend implemented, no mock
 import { backendHttpClient } from "@/services/api/backend.httpClient";
 
 export const xyzService = {
@@ -509,69 +509,69 @@ export const xyzService = {
 };
 ```
 
-**Regras de mock:**
+**Mock rules:**
 
-- Todo uso de mock tem um comentário `// TODO: backend não implementado` — facilita localizar o que ainda falta
-- Se o endpoint existe, não há justificativa para manter o mock — usar mock com backend disponível é débito técnico
-- Quando todos os endpoints de um service estiverem implementados, o arquivo `.mock.ts` é deletado
-- A migração é feita **apenas** no service real — telas não mudam
+- Every mock usage has a `// TODO: backend not implemented` comment — makes it easy to locate what is still missing
+- If the endpoint exists, there is no justification to keep the mock — using a mock with an available backend is technical debt
+- When all endpoints of a service are implemented, the `.mock.ts` file is deleted
+- The migration is done **only** in the real service — screens do not change
 
 #### HTTP clients (`services/api/`)
 
-Cada arquivo em `services/api/` é um cliente HTTP dedicado a um backend. Um cliente:
+Each file in `services/api/` is an HTTP client dedicated to one backend. A client:
 
-- Injeta o JWT no header `Authorization` lendo o token diretamente do `authStore` (em memória) — nunca do `AsyncStorage`. O `AsyncStorage` é acessado apenas no `authStore.bootstrap()` durante a inicialização do app.
-- Desembrulha o envelope de resposta da API e lança erro quando a resposta indica falha
-- Chama o handler de 401 registrado pelo `AuthContext` (quando aplicável)
+- Injects the JWT in the `Authorization` header by reading the token directly from `authStore` (in memory) — never from `AsyncStorage`. `AsyncStorage` is only accessed in `authStore.bootstrap()` during app initialization.
+- Unwraps the API response envelope and throws an error when the response indicates failure
+- Calls the 401 handler registered by `AuthContext` (when applicable)
 
-**Envelope padrão de resposta** — este é o modelo base; o documento `30+` do projeto define a estrutura real caso o backend divirja:
+**Standard response envelope** — this is the base model; the project's `30+` document defines the actual structure if the backend differs:
 
 ```typescript
-// sucesso (lista)
+// success (list)
 { data: T[], pagination: { pageSize: number, nextCursor: string | null, hasNext: boolean, ... } }
 
-// sucesso (item único)
+// success (single item)
 { data: T }
 
-// erro
+// error
 { "error": "ENTITY_NOT_FOUND", "message": "Entity abc-123 not found" }
 ```
 
-- `error` — código `UPPER_SNAKE_CASE`, estável e comparável programaticamente. Quando vindo do backend, passa por `t()` para exibir ao usuário.
-- `message` — texto legível por humanos, pode mudar — não usar para lógica.
+- `error` — `UPPER_SNAKE_CASE` code, stable and programmatically comparable. When coming from the backend, passed through `t()` to display to the user.
+- `message` — human-readable text, may change — do not use for logic.
 
-Nenhum arquivo fora de `services/` importa um cliente HTTP diretamente.
+No file outside `services/` imports an HTTP client directly.
 
 #### Store (`store/`)
 
-Stores Zustand armazenam estado de sessão do usuário autenticado — dados que precisam estar disponíveis em qualquer tela sem prop drilling.
+Zustand stores hold session state of the authenticated user — data that needs to be available in any screen without prop drilling.
 
-Stores ficam diretamente em `store/`, sem subpastas. Exemplos de stores típicas:
+Stores live directly in `store/`, without subfolders. Examples of typical stores:
 
-- `authStore` — token JWT e identificadores da sessão
-- `accountStore` — dados da conta carregada após login
-- `personStore` — dados da pessoa carregada após login
-- `errorStore` — erro crítico atual, usado para redirecionar o usuário a uma tela de erro
+- `authStore` — JWT token and session identifiers
+- `accountStore` — account data loaded after login
+- `personStore` — person data loaded after login
+- `errorStore` — current critical error, used to redirect the user to an error screen
 
-**Quando usar store:**
+**When to use a store:**
 
-- Dado compartilhado entre telas que tem um único ponto de modificação (ex: nome do usuário — qualquer tela lê, só o login altera)
-- Dado de sessão que precisa estar disponível em qualquer ponto do app sem prop drilling
+- Data shared between screens that has a single modification point (e.g., user name — any screen reads it, only login changes it)
+- Session data that needs to be available anywhere in the app without prop drilling
 
-**Quando não usar store:**
+**When not to use a store:**
 
-- Dado local da tela (loading, erro, valores de formulário) → `useState`
-- Dado que a tela busca para si mesma → `useState` + service
-- Dado passado entre telas via navegação → params do navigator. Params identificam e orientam — não transportam estado. Passar `id`, `type` ou campos que definem o comportamento da próxima tela é correto. Passar um objeto completo de domínio via params é proibido: some com reload e cria acoplamento implícito entre telas.
+- Screen-local data (loading, error, form values) → `useState`
+- Data the screen fetches for itself → `useState` + service
+- Data passed between screens via navigation → navigator params. Params identify and orient — they do not transport state. Passing `id`, `type`, or fields that define the behavior of the next screen is correct. Passing a complete domain object via params is prohibited: it disappears on reload and creates implicit coupling between screens.
 
-**Stores de cache:** quando uma tela identifica, por regra de negócio, que buscar os dados a cada acesso é custoso demais, ela pode requerer uma store de cache dedicada. Essa store vive em `store/` como qualquer outra e é responsável por guardar os dados e controlar quando invalidar (por tempo ou ação do usuário). Não é uma regra criar store de cache para toda lista — é uma decisão caso a caso da tela com base em necessidade real.
+**Cache stores:** when a screen identifies, by business rule, that fetching data on every access is too expensive, it may require a dedicated cache store. This store lives in `store/` like any other and is responsible for holding the data and controlling when to invalidate (by time or user action). Creating a cache store for every list is not a rule — it is a case-by-case decision based on real need.
 
-Regras gerais:
+General rules:
 
-- Cada store tem uma interface explícita com getters e setters nomeados
-- Stores não chamam o `httpClient` diretamente — toda comunicação com a API é delegada aos services
-- `AsyncStorage` é acessado exclusivamente por stores — nunca por telas, services ou contexts. Cada store é responsável por suas próprias chaves de persistência.
-- Stores podem tratar erros dentro do seu domínio de responsabilidade — por exemplo, validar dados antes de armazená-los e lançar se inválido. O que a store nunca faz é capturar um erro fora do seu domínio e descartá-lo silenciosamente. Erros que a store não sabe resolver são sempre propagados ao chamador. A decisão final sobre o que fazer com um erro pertence à tela ou ao `AuthContext`.
+- Each store has an explicit interface with named getters and setters
+- Stores do not call `httpClient` directly — all API communication is delegated to services
+- `AsyncStorage` is accessed exclusively by stores — never by screens, services, or contexts. Each store is responsible for its own persistence keys.
+- Stores may handle errors within their domain of responsibility — for example, validating data before storing it and throwing if invalid. What a store never does is silently discard an error outside its domain. Errors the store cannot resolve are always propagated to the caller. The final decision about what to do with an error belongs to the screen or `AuthContext`.
 
 ```typescript
 interface AccountStore {
@@ -583,79 +583,79 @@ interface AccountStore {
 
 #### AuthContext (`contexts/AuthContext.tsx`)
 
-O `AuthContext` é o guarda da sessão — não contém lógica de negócio. Sua única responsabilidade é observar se há uma sessão válida e agir quando não há.
+The `AuthContext` is the session guardian — it contains no business logic. Its only responsibility is to observe whether there is a valid session and act when there is not.
 
-Fluxo na inicialização do app:
+Flow on app initialization:
 
 ```
-AuthContext chama authStore.getToken()
-  → authStore verifica memória → não tem → verifica AsyncStorage
-    → não encontrou → retorna null → AppNavigator renderiza PublicStack
-    → encontrou     → salva em memória → retorna token
-                      → AppNavigator renderiza PrivateStack
-                        → PrivatePostLoginLoadingScreen chama authStore.bootstrap()
-                          → sucesso → navega para PrivateHomeScreen
-                          → falha   → reportCriticalError(err)
-                                      → PublicErrorBootstrapScreen
+AuthContext calls authStore.getToken()
+  → authStore checks memory → not found → checks AsyncStorage
+    → not found → returns null → AppNavigator renders PublicStack
+    → found     → saves in memory → returns token
+                  → AppNavigator renders PrivateStack
+                    → PrivatePostLoginLoadingScreen calls authStore.bootstrap()
+                      → success → navigates to PrivateHomeScreen
+                      → failure → reportCriticalError(err)
+                                  → PublicErrorBootstrapScreen
 ```
 
-Responsabilidades do `AuthContext`:
+Responsibilities of `AuthContext`:
 
-- Chamar `authStore.getToken()` na inicialização — o token é resolvido da memória ou do `AsyncStorage` pelo próprio store, sem o `AuthContext` conhecer os detalhes de persistência
-- Registrar o handler de 401 no `httpClient` — ao receber 401, o `AuthContext` chama `authStore.clearAuth()` e navega para `PublicAuthLoginScreen`. O `clearAuth()` é responsável por limpar o token e acionar o `clear()` de cada store de domínio internamente.
-- Observar o token no `authStore` — o `AppNavigator` reage e renderiza `PublicStack` ou `PrivateStack` conforme o estado
+- Call `authStore.getToken()` on initialization — the token is resolved from memory or `AsyncStorage` by the store itself, without `AuthContext` knowing the persistence details
+- Register the 401 handler in `httpClient` — on receiving 401, `AuthContext` calls `authStore.clearAuth()` and navigates to `PublicAuthLoginScreen`. `clearAuth()` is responsible for clearing the token and triggering the `clear()` of each domain store internally.
+- Observe the token in `authStore` — `AppNavigator` reacts and renders `PublicStack` or `PrivateStack` based on the state
 
-**`authStore.clearAuth()` é chamado em dois contextos:**
+**`authStore.clearAuth()` is called in two contexts:**
 
-- **`AuthContext`** — em resposta a um 401 (sessão expirada pelo servidor)
-- **`PublicAuthLogoutScreen`** — em resposta ao logout explícito do usuário
+- **`AuthContext`** — in response to a 401 (session expired by the server)
+- **`PublicAuthLogoutScreen`** — in response to an explicit logout by the user
 
-Nenhum outro service, hook ou tela chama `clearAuth()` diretamente.
+No other service, hook, or screen calls `clearAuth()` directly.
 
-O `AuthContext` **nunca**:
+The `AuthContext` **never**:
 
-- Chama serviços diretamente
-- Contém regras de negócio de autenticação
-- Gerencia token ou dados de usuário — isso é responsabilidade das stores
+- Calls services directly
+- Contains authentication business rules
+- Manages tokens or user data — that is the responsibility of stores
 
-#### Internacionalização (i18n)
+#### Internationalization (i18n)
 
-Suporte a múltiplos idiomas é implementado como uma store — nunca como um Context. Uma `languageStore` guarda o idioma atual e as traduções carregadas. Qualquer componente lê da store. Trocar idioma atualiza todos os assinantes via Zustand.
+Support for multiple languages is implemented as a store — never as a Context. A `languageStore` holds the current language and the loaded translations. Any component reads from the store. Changing the language updates all subscribers via Zustand.
 
 **Stack:**
 
-- **`i18next`** — motor de i18n, gerencia idioma atual e carregamento de traduções
-- **`react-i18next`** — hook `useTranslation()` para componentes React Native
-- **`zod-i18n-map`** — integra zod com i18next, traduz mensagens de validação automaticamente
+- **`i18next`** — i18n engine, manages current language and translation loading
+- **`react-i18next`** — `useTranslation()` hook for React Native components
+- **`zod-i18n-map`** — integrates zod with i18next, translates validation messages automatically
 
-**Estrutura de arquivos:**
+**File structure:**
 
 ```
 src/
 └── locales/
-    ├── pt-BR.json   ← idioma padrão
-    └── es.json      ← adicionar quando necessário
+    ├── pt-BR.json   ← default language
+    └── es.json      ← add when needed
 ```
 
-Organização das chaves por domínio:
+Key organization by domain:
 
 ```json
 {
   "validation": {
-    "required": "Campo obrigatório.",
-    "email": "Email inválido.",
-    "min": "Mínimo {{count}} caracteres."
+    "required": "Required field.",
+    "email": "Invalid email.",
+    "min": "Minimum {{count}} characters."
   },
   "action": {
-    "save": "Salvar",
-    "cancel": "Cancelar",
-    "delete": "Excluir",
-    "add": "Adicionar"
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "add": "Add"
   }
 }
 ```
 
-**Uso nos componentes:**
+**Usage in components:**
 
 ```typescript
 const { t } = useTranslation()
@@ -664,67 +664,67 @@ const { t } = useTranslation()
 <Button>{t('action.save')}</Button>
 ```
 
-**Regra obrigatória:** nenhum texto visível ao usuário é hardcoded. Todo string definido no frontend passa por `t()`. Isso inclui: labels, placeholders, títulos de tela, textos de botão, mensagens de estado vazio, toasts de feedback.
+**Mandatory rule:** no user-visible text is hardcoded. Every string defined in the frontend goes through `t()`. This includes: labels, placeholders, screen titles, button text, empty state messages, feedback toasts.
 
-**Conteúdo vindo do backend — caso a caso:**
+**Content from the backend — case by case:**
 
-- Backend enviou um **código de erro** (ex: `"USER_NOT_FOUND"`) → passar por `t()`, traduzindo o código para uma mensagem legível
-- Backend enviou **dados de domínio** (nome de usuário, título de produto, descrição) → exibir diretamente, sem `t()`. São valores inseridos por usuários, não constantes do sistema — não faz sentido traduzi-los.
+- Backend sent an **error code** (e.g., `"USER_NOT_FOUND"`) → pass through `t()`, translating the code into a readable message
+- Backend sent **domain data** (user name, product title, description) → display directly, without `t()`. These are user-inserted values, not system constants — it does not make sense to translate them.
 
-**Integração com o `languageStore`:**
+**Integration with `languageStore`:**
 
 ```
 authStore.bootstrap()
-  → languageStore.bootstrap()  ← carrega idioma salvo + chama i18next.changeLanguage()
+  → languageStore.bootstrap()  ← loads saved language + calls i18next.changeLanguage()
   → accountStore.bootstrap()
   → ...
 ```
 
-**i18n é estado global — vai em store, não em Context.**
+**i18n is global state — goes in a store, not a Context.**
 
-#### Sobre Contexts em geral
+#### On Contexts in general
 
-Context é o mecanismo do React para executar efeitos reativos na raiz da árvore de componentes — coisas que precisam rodar antes de qualquer tela ser renderizada. **Não é um substituto para estado global** — para isso existe o Zustand.
+Context is the React mechanism for running reactive effects at the root of the component tree — things that need to run before any screen is rendered. **It is not a substitute for global state** — Zustand exists for that.
 
-Na prática, num projeto com Zustand, você quase nunca precisa criar um segundo Context. Tudo que parece precisar de Context — idioma, tema, permissões, dados do usuário — resolve com uma store.
+In practice, in a project with Zustand, you almost never need to create a second Context. Everything that seems to need a Context — language, theme, permissions, user data — is solved with a store.
 
-Os Contexts que aparecem na árvore do app mas **não são escritos pelo projeto** são Providers de bibliotecas (`PaperProvider`, `NavigationContainer`, etc.) — eles não contam como Contexts do projeto.
+Contexts that appear in the app tree but **are not written by the project** are library Providers (`PaperProvider`, `NavigationContainer`, etc.) — they do not count as project Contexts.
 
-**Antes de criar um novo Context, responda:** isso precisa de efeitos reativos integrados ao ciclo de vida do React, ou é só estado global? Se for estado global, é uma store.
+**Before creating a new Context, answer:** does this need reactive effects integrated into the React lifecycle, or is it just global state? If it is global state, it is a store.
 
 ---
 
-### Navegação (`navigation/`)
+### Navigation (`navigation/`)
 
-A árvore de navegação usa um **único `NavigationContainer`**. O `AppNavigator` é o navigator raiz dentro dele e decide qual área renderizar com base no token. A separação entre `Public` e `Private` é feita por stacks condicionais — não por containers separados.
+The navigation tree uses a **single `NavigationContainer`**. The `AppNavigator` is the root navigator inside it and decides which area to render based on the token. The separation between `Public` and `Private` is done by conditional stacks — not by separate containers.
 
 ```
 NavigationContainer
 └── AppNavigator
-    ├── PublicStack              ← sem token (navigation/public/)
+    ├── PublicStack              ← no token (navigation/public/)
     │   ├── PublicAuthStack
     │   │   ├── PublicAuthLoginScreen
     │   │   ├── PublicAuthRegisterScreen
     │   │   ├── PublicAuthLogoutScreen
     │   │   └── ...
-    │   └── PublicErrorStack     ← acessível sem autenticação
+    │   └── PublicErrorStack     ← accessible without authentication
     │       ├── PublicErrorBootstrapScreen
     │       └── PublicErrorGenericScreen
-    └── PrivateStack             ← com token (navigation/private/)
+    └── PrivateStack             ← with token (navigation/private/)
         ├── PrivatePostLoginLoadingScreen
         └── PrivateMainTabs
-            ├── Private<Domain>Stack  ← um por área funcional
+            ├── Private<Domain>Stack  ← one per functional area
             └── ...
 ```
 
-**Telas de erro dentro do `PublicStack`.** Erros críticos não requerem autenticação para serem exibidos — vivem no `PublicErrorStack`, dentro do `PublicStack`. Qualquer tela (pública ou privada) navega para elas com `navigate('PublicErrorGenericScreen')`. O React Navigation encontra a tela subindo e descendo a hierarquia automaticamente. A localização em `public/error/` força a pergunta: "esse dado pode ser exposto sem autenticação?"
+**Error screens inside `PublicStack`.** Critical errors do not require authentication to be displayed — they live in `PublicErrorStack`, inside `PublicStack`. Any screen (public or private) navigates to them with `navigate('PublicErrorGenericScreen')`. React Navigation finds the screen by going up and down the hierarchy automatically. Placing them in `public/error/` forces the question: "can this data be exposed without authentication?"
 
-**Histórico de navegação unificado.** O histórico é único e linear — `goBack()` funciona livremente entre stacks de tabs diferentes. Se o usuário estava em `PrivateAdminUsersScreen`, navegou para Home e apertou voltar, retorna para `PrivateAdminUsersScreen`. Esse é o comportamento correto e esperado.
+**Unified navigation history.** The history is single and linear — `goBack()` works freely between different tab stacks. If the user was on `PrivateAdminUsersScreen`, navigated to Home, and pressed back, they return to `PrivateAdminUsersScreen`. This is the correct and expected behavior.
 
-**Double-tap na tab reseta o stack.** Tocar em uma tab já ativa desempilha todas as telas daquele stack e retorna para a tela raiz. É a ação explícita do usuário para "começar do zero" naquela área.
+**Double-tap on tab resets the stack.** Tapping an already-active tab pops all screens of that stack and returns to the root screen. It is the user's explicit action to "start over" in that area.
 
 ```typescript
-// em cada Screen dentro do tab navigator:
+// in each Screen inside the tab navigator:
 listeners={({ navigation }) => ({
   tabPress: () => {
     if (navigation.isFocused()) {
@@ -734,22 +734,22 @@ listeners={({ navigation }) => ({
 })}
 ```
 
-Regras:
+Rules:
 
-- `AppNavigator` não contém lógica — apenas lê o token do `authStore` e renderiza `PublicStack` ou `PrivateStack`
-- Toda tela nova é declarada em exatamente um stack, espelhando sua pasta em `screens/`
-- Com token mas stores ainda vazias → `PrivatePostLoginLoadingScreen` executa o bootstrap antes de mostrar o app
-- Cada área funcional tem seu próprio stack dentro de `PrivateMainTabs`
-- Telas raiz de cada tab nunca têm botão voltar
-- **Nomes de telas e stacks encapsulam a hierarquia de acesso** — o nome é autodocumentado e elimina ambiguidade entre telas de domínios diferentes (ver seção Convenções)
+- `AppNavigator` contains no logic — it only reads the token from `authStore` and renders `PublicStack` or `PrivateStack`
+- Every new screen is declared in exactly one stack, mirroring its folder in `screens/`
+- With token but stores still empty → `PrivatePostLoginLoadingScreen` runs the bootstrap before showing the app
+- Each functional area has its own stack inside `PrivateMainTabs`
+- Root screens of each tab never have a back button
+- **Screen and stack names encapsulate the access hierarchy** — the name is self-documented and eliminates ambiguity between screens from different domains (see Conventions section)
 
 ---
 
-### Tema
+### Theme
 
-O tema central fica em `src/theme/` e é a **única fonte de verdade** para cores, tipografia e espaçamentos do sistema de design. Ele estende o tema da biblioteca de UI instalada — leia o `package.json` para identificar qual é.
+The central theme lives in `src/theme/` and is the **single source of truth** for colors, typography, and spacing of the design system. It extends the theme of the installed UI library — read `package.json` to identify which one it is.
 
-**Nunca hardcode valores visuais em componentes ou telas.** Cores, tamanhos de fonte e espaçamentos sempre vêm do tema.
+**Never hardcode visual values in components or screens.** Colors, font sizes, and spacings always come from the theme.
 
 ```typescript
 // wrong
@@ -761,17 +761,17 @@ padding: 12;
 // correct
 color: theme.colors.primary;
 backgroundColor: theme.colors.background;
-fontSize: theme.fonts.bodyMedium.fontSize; // ou equivalente da lib instalada
+fontSize: theme.fonts.bodyMedium.fontSize; // or equivalent from installed lib
 padding: Spacing.md;
 ```
 
-Ao precisar de um valor que não existe no tema, adicionar ao tema — não inline no componente.
+When you need a value that does not exist in the theme, add it to the theme — not inline in the component.
 
 ---
 
 ### Config (`config/index.ts`)
 
-Valores de ambiente que mudam entre builds (URLs, timeouts, feature flags) ficam em um único arquivo `src/config/index.ts`. Nenhum outro arquivo acessa variáveis de ambiente diretamente.
+Environment values that change between builds (URLs, timeouts, feature flags) live in a single file `src/config/index.ts`. No other file accesses environment variables directly.
 
 ```typescript
 // src/config/index.ts
@@ -781,153 +781,153 @@ export const API_TIMEOUT = 10_000;
 ```
 
 ```typescript
-// uso
+// usage
 import { API_BASE_URL } from "@/config";
 ```
 
-Se o arquivo crescer muito, quebre por domínio (`config/api.ts`, `config/features.ts`). Comece com um arquivo só.
+If the file grows too large, break it by domain (`config/api.ts`, `config/features.ts`). Start with a single file.
 
 ---
 
 ### Types (`types/`)
 
-O padrão é sempre criar tipos em `types/`, com subdiretório por domínio.
+The standard is always to create types in `types/`, with a subdirectory per domain.
 
-**Proibido usar `index.ts` como barrel export em qualquer parte do `src/`.** Essa regra é global — vale para `types/`, `components/`, `hooks/`, `services/`, `utils/` e demais diretórios. O caminho do arquivo é informação semântica: `import { User } from '@/types/user/user.model'` diz que é o modelo de domínio. `import { User } from '@/types/user/user.api'` diz que é um tipo de contrato com a API. Um `index.ts` que re-exporta tudo apaga essa informação, dificulta tree-shaking e aumenta o risco de imports circulares.
+**Using `index.ts` as a barrel export is prohibited anywhere in `src/`.** This rule is global — applies to `types/`, `components/`, `hooks/`, `services/`, `utils/`, and other directories. The file path is semantic information: `import { User } from '@/types/user/user.model'` says it is the domain model. `import { User } from '@/types/user/user.api'` says it is an API contract type. An `index.ts` that re-exports everything erases this information, hinders tree-shaking, and increases the risk of circular imports.
 
 ```
 types/
 ├── navigation/
-│   ├── publicStack.ts        ← ParamList do PublicStack
-│   ├── privateStack.ts       ← ParamList do PrivateStack
-│   ├── mainTabs.ts           ← ParamList do MainTabs
-│   └── adminStack.ts         ← ParamList de cada stack de domínio
+│   ├── publicStack.ts        ← PublicStack ParamList
+│   ├── privateStack.ts       ← PrivateStack ParamList
+│   ├── mainTabs.ts           ← MainTabs ParamList
+│   └── adminStack.ts         ← ParamList for each domain stack
 ├── user/
-│   ├── user.model.ts         ← modelo de domínio (o que o app usa internamente)
-│   └── user.api.ts           ← tipos de request/response da API
-├── evento/
-│   ├── evento.model.ts
-│   └── evento.api.ts
-└── organizacao/
-    └── organizacao.model.ts
+│   ├── user.model.ts         ← domain model (what the app uses internally)
+│   └── user.api.ts           ← API request/response types
+├── event/
+│   ├── event.model.ts
+│   └── event.api.ts
+└── organization/
+    └── organization.model.ts
 ```
 
-Tipos de navegação ficam em `types/navigation/`, um arquivo por stack navigator. Nunca dentro de `navigation/` — tipos pertencem a `types/`.
+Navigation types live in `types/navigation/`, one file per stack navigator. Never inside `navigation/` — types belong in `types/`.
 
-Se o domínio for simples e tiver poucos tipos, um único arquivo por domínio é suficiente — quebre em arquivos conforme o domínio crescer.
+If the domain is simple and has few types, a single file per domain is sufficient — break into files as the domain grows.
 
-**Tipo local é exceção, não regra.** Use tipo local apenas quando for verdadeiramente interno a um único arquivo e sem nenhuma utilidade fora dele — por exemplo, um tipo auxiliar para troca de parâmetros entre duas funções privadas dentro do mesmo service.
+**Local type is the exception, not the rule.** Use local types only when truly internal to a single file and with no usefulness outside it — for example, an auxiliary type for parameter passing between two private functions within the same service.
 
 ```typescript
-// local — correto, nunca vai ser usado fora deste arquivo
+// local — correct, will never be used outside this file
 type ParsedResponse = { id: string; raw: unknown }
 function parse(raw: unknown): ParsedResponse { ... }
 function transform(parsed: ParsedResponse) { ... }
 ```
 
-Se existe qualquer chance do tipo ser usado em outro arquivo — tela, store, service, componente — ele vai para `types/`.
+If there is any chance the type will be used in another file — screen, store, service, component — it goes into `types/`.
 
 ---
 
 ### Hooks (`hooks/`)
 
-Hooks são funções que usam hooks do React internamente (`useState`, `useEffect`, `useRef`, etc.). São o lugar para lógica com estado reutilizável entre telas ou componentes.
+Hooks are functions that use React hooks internally (`useState`, `useEffect`, `useRef`, etc.). They are the place for reusable stateful logic between screens or components.
 
 ```
 hooks/
-├── commons/          ← hooks genéricos sem domínio específico
+├── commons/          ← generic hooks with no specific domain
 │   └── modal/
 │       └── useGenericModal.ts
-└── <domain>/         ← hooks específicos de um domínio
-    └── useEventosFilter.ts
+└── <domain>/         ← domain-specific hooks
+    └── useEventsFilter.ts
 ```
 
-**Quando criar um hook:** quando a mesma lógica com estado aparecer em mais de um lugar. Se a lógica existe em uma tela só, fica na tela.
+**When to create a hook:** when the same stateful logic appears in more than one place. If the logic exists in only one screen, it stays in the screen.
 
-**Hooks podem receber parâmetros** — inclusive stores — tornando-os adaptadores reutilizáveis entre estado e componente.
+**Hooks can receive parameters** — including stores — making them reusable adapters between state and component.
 
-**Hooks não são `utils/`.** Se a função não usa nenhum hook do React, é uma função pura e vai para `utils/`.
+**Hooks are not `utils/`.** If the function does not use any React hook, it is a pure function and goes into `utils/`.
 
 ---
 
 ### Utils (`utils/`)
 
-Utils são funções puras sem hooks do React — formatação, validação, parsing, cálculos. Podem ser usadas em qualquer contexto, inclusive fora do React.
+Utils are pure functions without React hooks — formatting, validation, parsing, calculations. They can be used in any context, including outside React.
 
 ```
 utils/
 ├── dateTime/
-│   ├── formatter.ts   ← funções que formatam datas
-│   └── validator.ts   ← funções que validam datas
+│   ├── formatter.ts   ← functions that format dates
+│   └── validator.ts   ← functions that validate dates
 └── string/
-    ├── formatter.ts   ← funções que formatam strings
-    └── parser.ts      ← funções que parseiam strings
+    ├── formatter.ts   ← functions that format strings
+    └── parser.ts      ← functions that parse strings
 ```
 
-O subdiretório define o domínio. O arquivo define a operação (`formatter`, `validator`, `parser`, `calculator`). Juntos são auto-explicativos sem repetição.
+The subdirectory defines the domain. The file defines the operation (`formatter`, `validator`, `parser`, `calculator`). Together they are self-explanatory without repetition.
 
-**Se precisar de um hook dentro, não é util — é hook.**
+**If you need a hook inside, it is not a util — it is a hook.**
 
 ---
 
-## S3 — Implementação
+## S3 — Implementation
 
-> Leia esta seção apenas ao implementar ou dar manutenção em: auth, sessão, bootstrap, fluxo de login, telas de erro crítico.
+> Read this section only when implementing or maintaining: auth, session, bootstrap, login flow, critical error screens.
 
 ### authStore (`store/authStore.ts`)
 
-O `authStore` é o repositório da sessão e o orquestrador da autenticação e inicialização das stores.
+The `authStore` is the session repository and the orchestrator of authentication and store initialization.
 
-Responsabilidades:
+Responsibilities:
 
-- Guardar e expor o token JWT em memória
-- Implementar `getToken()`: verifica memória primeiro — se não encontrar, busca no `AsyncStorage`, salva em memória e retorna. Se não encontrar em nenhum dos dois, retorna `null`.
-- Implementar `login(credentials)`: chama `authService.login()`, persiste o token no `AsyncStorage` e em memória, retorna sucesso ou propaga a exceção para a tela tratar
-- Implementar `bootstrap()`: chama `bootstrap()` em cada store que precisa ser inicializada — chamado pela `PrivatePostLoginLoadingScreen`
-- Limpar o token do `AsyncStorage` e da memória, e acionar `clear()` nas demais stores no logout
+- Hold and expose the JWT token in memory
+- Implement `getToken()`: checks memory first — if not found, fetches from `AsyncStorage`, saves in memory, and returns. If not found in either, returns `null`.
+- Implement `login(credentials)`: calls `authService.login()`, persists the token in `AsyncStorage` and in memory, returns success or propagates the exception for the screen to handle
+- Implement `bootstrap()`: calls `bootstrap()` on each store that needs to be initialized — called by `PrivatePostLoginLoadingScreen`
+- Clear the token from `AsyncStorage` and memory, and trigger `clear()` on other stores on logout
 
-**Fluxo de login:**
+**Login flow:**
 
 ```
-PublicAuthLoginScreen — usuário submete formulário
+PublicAuthLoginScreen — user submits form
   → authStore.login(credentials)
     → authService.login(credentials)
-      → sucesso → token salvo no AsyncStorage e no authStore
-        → authStore retorna sucesso para PublicAuthLoginScreen
-          → PublicAuthLoginScreen navega para PrivatePostLoginLoadingScreen
-            → PrivatePostLoginLoadingScreen chama authStore.bootstrap()
-              → sucesso → navega para PrivateHomeScreen
-              → falha UNAUTHORIZED → ignora — handler de 401 do AuthContext
-                                     já limpou a sessão e navegou para
-                                     PublicAuthLoginScreen
-              → outra falha → reportCriticalError(err) → PublicErrorBootstrapScreen
-      → falha → exceção propagada → PublicAuthLoginScreen trata (feedback inline)
+      → success → token saved in AsyncStorage and authStore
+        → authStore returns success to PublicAuthLoginScreen
+          → PublicAuthLoginScreen navigates to PrivatePostLoginLoadingScreen
+            → PrivatePostLoginLoadingScreen calls authStore.bootstrap()
+              → success → navigates to PrivateHomeScreen
+              → UNAUTHORIZED failure → ignore — AuthContext 401 handler
+                                       already cleared the session and navigated to
+                                       PublicAuthLoginScreen
+              → other failure → reportCriticalError(err) → PublicErrorBootstrapScreen
+      → failure → exception propagated → PublicAuthLoginScreen handles (inline feedback)
 ```
 
 ---
 
-### Stores de domínio
+### Domain stores
 
-Cada store de domínio (ex: `accountStore`, `personStore`) é autossuficiente na sua inicialização.
+Each domain store (e.g., `accountStore`, `personStore`) is self-sufficient in its initialization.
 
-Responsabilidades:
+Responsibilities:
 
-- Guardar e expor os dados do seu domínio
-- Implementar `bootstrap()`: chama seu próprio service para buscar e popular os dados
-- Implementar `clear()`: limpa os dados ao fazer logout
+- Hold and expose its domain data
+- Implement `bootstrap()`: calls its own service to fetch and populate the data
+- Implement `clear()`: clears the data on logout
 
 ```typescript
-// padrão de interface para stores inicializáveis
+// standard interface for initializable stores
 interface DomainStore {
   bootstrap(): Promise<void>;
   clear(): void;
 }
 ```
 
-O `authStore.bootstrap()` conhece quais stores precisam ser inicializadas e chama o `bootstrap()` de cada uma em sequência. Cada store decide como se popular — o `authStore` não conhece os detalhes.
+`authStore.bootstrap()` knows which stores need to be initialized and calls the `bootstrap()` of each in sequence. Each store decides how to populate itself — `authStore` does not know the details.
 
 ```typescript
-// exemplo — a lista exata depende do projeto
+// example — the exact list depends on the project
 async bootstrap() {
   await languageStore.bootstrap()
   await accountStore.bootstrap()
@@ -935,51 +935,51 @@ async bootstrap() {
 }
 ```
 
-**Regra:** toda store que precisa ser inicializada no login **deve** ser adicionada explicitamente ao `authStore.bootstrap()`. Essa lista é a fonte de verdade das dependências de inicialização do app. Criar uma store com `bootstrap()` sem adicioná-la aqui é um erro — a store começará vazia e a tela quebrará silenciosamente.
+**Rule:** every store that needs to be initialized at login **must** be explicitly added to `authStore.bootstrap()`. This list is the source of truth for app initialization dependencies. Creating a store with `bootstrap()` without adding it here is a bug — the store will start empty and the screen will break silently.
 
 ---
 
-### Erros críticos
+### Critical errors
 
-A tela sempre tem o erro em mãos — ela captura a exceção no `try/catch` e decide o que fazer com ela:
+The screen always has the error in hand — it captures the exception in `try/catch` and decides what to do with it:
 
-| Tipo                | Quando                                                                                           | Onde tratar                                                                                       |
-| ------------------- | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------- |
-| **Erro esperado**   | A tela reconhece o código do erro e sabe como reagir — 404, 403, falha de validação, lista vazia | `useState` na própria tela, feedback inline. O usuário continua navegando.                        |
-| **Erro inesperado** | A tela não reconhece o erro — exceção de runtime, estado inválido, erro sem código conhecido     | `useReportCriticalError()` → `errorStore.setError(erro)` + `navigate('PublicErrorGenericScreen')` |
+| Type | When | Where to handle |
+| --- | --- | --- |
+| **Expected error** | The screen recognizes the error code and knows how to react — 404, 403, validation failure, empty list | `useState` on the screen itself, inline feedback. The user continues navigating. |
+| **Unexpected error** | The screen does not recognize the error — runtime exception, invalid state, error with no known code | `useReportCriticalError()` → `errorStore.setError(error)` + `navigate('PublicErrorGenericScreen')` |
 
-A lista de códigos de erro que cada tela trata por conta própria é decisão de projeto — definida no arquivo `30+`. O que este documento estabelece é o princípio: erros reconhecidos ficam na tela; erros não reconhecidos vão para o `errorStore`.
+The list of error codes each screen handles on its own is a project decision — defined in the `30+` file. What this document establishes is the principle: recognized errors stay in the screen; unrecognized errors go to `errorStore`.
 
-O projeto tem telas de erro pré-definidas em `screens/public/error/`, cada uma com responsabilidade e ação de recuperação específicas. O projeto pode adicionar telas de erro próprias neste diretório conforme necessário.
+The project has predefined error screens in `screens/public/error/`, each with specific responsibility and recovery action. The project can add its own error screens in this directory as needed.
 
-**`PublicErrorBootstrapScreen`** — exclusiva para falhas no bootstrap da sessão. Exibe o erro e oferece um botão de retry que navega para `PrivatePostLoginLoadingScreen` — sem chamar nenhuma store diretamente.
+**`PublicErrorBootstrapScreen`** — exclusive for session bootstrap failures. Displays the error and offers a retry button that navigates to `PrivatePostLoginLoadingScreen` — without calling any store directly.
 
 ```
-PrivatePostLoginLoadingScreen chama authStore.bootstrap()
-  → falha → reportCriticalError(err)
+PrivatePostLoginLoadingScreen calls authStore.bootstrap()
+  → failure → reportCriticalError(err)
               → errorStore.setError(err)
               → navigate('PublicErrorBootstrapScreen')
-                → usuário aciona retry → navigate('PrivatePostLoginLoadingScreen')
-                  → PrivatePostLoginLoadingScreen chama authStore.bootstrap() novamente
-                    → sucesso → navega para PrivateHomeScreen
-                    → falha   → reportCriticalError(err) → PublicErrorBootstrapScreen novamente
+                → user triggers retry → navigate('PrivatePostLoginLoadingScreen')
+                  → PrivatePostLoginLoadingScreen calls authStore.bootstrap() again
+                    → success → navigates to PrivateHomeScreen
+                    → failure → reportCriticalError(err) → PublicErrorBootstrapScreen again
 ```
 
-**`PublicErrorGenericScreen`** — tela de erro geral, usada por qualquer tela do app para erros inesperados não cobertos por uma tela específica. A ação de recuperação é definida pelo contexto — tipicamente voltar ao início ou tentar novamente.
+**`PublicErrorGenericScreen`** — general error screen, used by any screen in the app for unexpected errors not covered by a specific screen. The recovery action is defined by context — typically go back to the start or try again.
 
-O padrão para erros inesperados em telas é sempre o mesmo:
+The pattern for unexpected errors in screens is always the same:
 
 ```
-tela captura exceção não reconhecida no catch
+screen captures unrecognized exception in catch
   → useReportCriticalError(err)
     → errorStore.setError(err)
     → navigation.navigate('PublicErrorGenericScreen')
-      → tela lê o erro do errorStore
-      → exibe mensagem e ação de recuperação
-      → ação de recuperação: errorStore.clearError() → navega de volta
+      → screen reads the error from errorStore
+      → displays message and recovery action
+      → recovery action: errorStore.clearError() → navigates back
 ```
 
-Para evitar repetição, um hook encapsula as duas chamadas:
+To avoid repetition, a hook encapsulates both calls:
 
 ```typescript
 // hooks/commons/useReportCriticalError.ts
@@ -992,36 +992,36 @@ export function useReportCriticalError() {
 }
 ```
 
-**`errorStore`** é o canal de comunicação entre quem detecta o erro e a tela de erro. Não passa o erro via params de navegação — isso violaria a regra de params como identificadores.
+**`errorStore`** is the communication channel between whoever detects the error and the error screen. Do not pass the error via navigation params — that would violate the rule of params as identifiers.
 
-**O que toda tela de erro deve fazer:**
+**What every error screen must do:**
 
-- Informar que o sistema apresentou um erro e orientar o usuário (tentar novamente ou contactar o suporte)
-- Oferecer a ação de recuperação adequada ao contexto
-- Exibir detalhes técnicos do erro (código, serviço, timestamp) para apoiar o suporte
-- **Nunca expor dados sensíveis** — token JWT, senhas e dados pessoais (nome, email, CPF) nunca aparecem
+- Inform that the system encountered an error and guide the user (try again or contact support)
+- Offer the recovery action appropriate to the context
+- Display technical error details (code, service, timestamp) to support the support team
+- **Never expose sensitive data** — JWT token, passwords, and personal data (name, email, ID) never appear
 
 ---
 
-## S4 — Padrões de Interação
+## S4 — Interaction Patterns
 
-> Leia esta seção ao implementar qualquer tela com loading, erro, lista vazia ou formulário.
+> Read this section when implementing any screen with loading, error, empty list, or form.
 
 ---
 
 ### Loading
 
-O projeto tem dois contextos de loading com comportamentos distintos.
+The project has two loading contexts with distinct behaviors.
 
-#### Loading local — busca inicial de dados
+#### Local loading — initial data fetch
 
-**Telas com formulário ou conteúdo único** — exibe `ActivityIndicator` centralizado enquanto aguarda.
+**Screens with form or single content** — displays a centered `ActivityIndicator` while waiting.
 
 ```typescript
-return loading ? <ActivityIndicator style={{ flex: 1 }} /> : <conteúdo />
+return loading ? <ActivityIndicator style={{ flex: 1 }} /> : <content />
 ```
 
-**Telas com lista** — exibe `SKELETON_COUNT` repetições do `SkeletonCard` enquanto aguarda. O skeleton é um card cinza claro com animação de shimmer — único componente, independente do tipo de item da lista.
+**Screens with list** — displays `SKELETON_COUNT` repetitions of `SkeletonCard` while waiting. The skeleton is a light gray card with a shimmer animation — a single component, independent of the list item type.
 
 ```typescript
 return loading ? (
@@ -1033,33 +1033,33 @@ return loading ? (
 ) : <FlatList ... />
 ```
 
-`SKELETON_COUNT` vem de `config`:
+`SKELETON_COUNT` comes from `config`:
 
 ```typescript
 export const SKELETON_COUNT = Number(process.env.EXPO_PUBLIC_SKELETON_COUNT ?? 5)
 ```
 
-`SkeletonCard` fica em `atom/feedback/SkeletonCard.tsx`.
+`SkeletonCard` lives in `atom/feedback/SkeletonCard.tsx`.
 
-#### Overlay global — ações do usuário
+#### Global overlay — user actions
 
-Usado quando o usuário executa uma ação que chama a API (salvar, inscrever, deletar, login, logout, etc.). Bloqueia a tela inteira via `loadingStore`, impedindo duplo-clique e navegação acidental durante a operação.
+Used when the user executes an action that calls the API (save, subscribe, delete, login, logout, etc.). Blocks the entire screen via `loadingStore`, preventing double-click and accidental navigation during the operation.
 
-**Regra:** toda operação `async` disparada pelo usuário — via `service` ou via `store action async` — usa o overlay global. Sem exceção.
+**Rule:** every `async` operation triggered by the user — via `service` or via `async store action` — uses the global overlay. No exceptions.
 
-Operações síncronas de store (`setUser`, `clearError`, `setError`) **não** usam o overlay — são instantâneas.
+Synchronous store operations (`setUser`, `clearError`, `setError`) **do not** use the overlay — they are instantaneous.
 
-O `LoadingOverlay` é um `Modal` transparente com `ActivityIndicator` renderizado na raiz do app, acima de tudo (tabs, header, navegação).
+The `LoadingOverlay` is a transparent `Modal` with an `ActivityIndicator` rendered at the root of the app, above everything (tabs, header, navigation).
 
 ---
 
-### Erros
+### Errors
 
-O projeto tem cinco tipos de erro com apresentações distintas.
+The project has five error types with distinct presentations.
 
-#### `showToast` — wrapper obrigatório
+#### `showToast` — mandatory wrapper
 
-Toda chamada ao toast passa por `showToast` em `utils/toast/toast.ts`. Nunca chamar a lib de toast diretamente. Os defaults ficam em um único lugar.
+Every call to toast goes through `showToast` in `utils/toast/toast.ts`. Never call the toast library directly. Defaults live in a single place.
 
 ```typescript
 // utils/toast/toast.ts
@@ -1074,7 +1074,7 @@ export function showToast(params: ToastShowParams) {
 }
 ```
 
-O tempo de exibição é configurável em `src/config`:
+The display time is configurable in `src/config`:
 
 ```typescript
 // src/config/index.ts
@@ -1083,67 +1083,67 @@ export const TOAST_VISIBILITY_MS = Number(
 )
 ```
 
-#### Toast types padrão
+#### Default toast types
 
-Três types são definidos uma vez na configuração do `react-native-toast-message`:
+Three types are defined once in the `react-native-toast-message` configuration:
 
-| Type | Ícone | Quando usar |
+| Type | Icon | When to use |
 |---|---|---|
-| `error` | ícone de erro/alerta | Erro de negócio da API |
-| `networkError` | ícone de rede/wifi | Sem conexão, timeout |
-| `success` | ícone de check | Ação concluída com sucesso |
+| `error` | error/alert icon | API business error |
+| `networkError` | network/wifi icon | No connection, timeout |
+| `success` | check icon | Action completed successfully |
 
-Todos seguem o mesmo comportamento: topo da tela, `TOAST_VISIBILITY_MS` para sumir, swipe para fechar, toque pausa o contador.
+All follow the same behavior: top of the screen, `TOAST_VISIBILITY_MS` to disappear, swipe to close, tap pauses the counter.
 
-#### Tipo 1 — Validação de formulário
+#### Type 1 — Form validation
 
-Aparece inline, diretamente abaixo do campo com problema.
+Appears inline, directly below the field with the problem.
 
-- Ao sair do campo (`onBlur`) — valida apenas o campo que perdeu foco
-- Campo não tocado nunca exibe erro, mesmo se obrigatório
-- No submit — valida todos os campos, incluindo os não tocados
+- On leaving the field (`onBlur`) — validates only the field that lost focus
+- An untouched field never displays an error, even if required
+- On submit — validates all fields, including untouched ones
 
 ```typescript
 <TextInput
-  error={touched.nome && !!errors.nome}
-  onBlur={() => setTouched(t => ({ ...t, nome: true }))}
+  error={touched.name && !!errors.name}
+  onBlur={() => setTouched(t => ({ ...t, name: true }))}
 />
-{touched.nome && errors.nome && (
-  <HelperText type="error">{errors.nome}</HelperText>
+{touched.name && errors.name && (
+  <HelperText type="error">{errors.name}</HelperText>
 )}
 ```
 
-Se o erro puder ser mapeado para um campo específico (ex: "email já cadastrado" vindo da API), trata como validação de formulário — aparece inline no campo correspondente.
+If the error can be mapped to a specific field (e.g., "email already registered" from the API), treat it as form validation — appears inline in the corresponding field.
 
-#### Tipo 2 — Erro de negócio da API
+#### Type 2 — API business error
 
-A API processou a requisição e retornou um erro de regra de negócio que não pode ser atribuído a um campo específico.
+The API processed the request and returned a business rule error that cannot be attributed to a specific field.
 
-**Como aparece:** banner flutuante no topo da tela via toast, sobreposto ao conteúdo sem deslocar o layout. Some automaticamente, mas pode ser fechado por swipe. Tocar pausa o contador.
+**How it appears:** floating banner at the top of the screen via toast, overlaid on the content without shifting the layout. Disappears automatically, but can be closed by swipe. Tapping pauses the counter.
 
 ```typescript
 showToast({ type: 'error', text1: t('error.title'), text2: err.message })
 ```
 
-#### Tipo 3 — Sem conexão / timeout
+#### Type 3 — No connection / timeout
 
-A requisição não chegou ao servidor. Usa toast com type específico de rede (definido no `30+`).
+The request did not reach the server. Uses toast with a network-specific type (defined in `30+`).
 
-A função `isNetworkError` fica em `utils/error/classifier.ts` e é a única responsável por distinguir erros de rede de erros de negócio.
+The `isNetworkError` function lives in `utils/error/classifier.ts` and is the only one responsible for distinguishing network errors from business errors.
 
-#### Tipo 4 — Sessão expirada (401)
+#### Type 4 — Expired session (401)
 
-Interceptado pelo `httpClient` e tratado exclusivamente pelo `AuthContext` — nenhuma tela trata 401 diretamente.
+Intercepted by `httpClient` and handled exclusively by `AuthContext` — no screen handles 401 directly.
 
 ```
-httpClient recebe 401 → handler do AuthContext → showToast → authStore.clearAuth() → AppNavigator redireciona para login
+httpClient receives 401 → AuthContext handler → showToast → authStore.clearAuth() → AppNavigator redirects to login
 ```
 
-#### Tipo 5 — Erro crítico / inesperado
+#### Type 5 — Critical / unexpected error
 
-Último recurso do `catch` — não é de rede, não é de negócio, não foi previsto. Vai para `errorStore` + `PublicErrorGenericScreen` via `useReportCriticalError()`.
+Last resort from `catch` — not a network error, not a business error, not anticipated. Goes to `errorStore` + `PublicErrorGenericScreen` via `useReportCriticalError()`.
 
-**Hierarquia de decisão no `catch`:**
+**Decision hierarchy in `catch`:**
 
 ```typescript
 } catch (err) {
@@ -1157,13 +1157,13 @@ httpClient recebe 401 → handler do AuthContext → showToast → authStore.cle
 }
 ```
 
-**Regra:** todo `catch` de tela segue essa hierarquia. Nunca silenciar um erro com `catch (err) {}` vazio.
+**Rule:** every screen `catch` follows this hierarchy. Never silence an error with an empty `catch (err) {}`.
 
-#### Hooks de ação — `useErrorHandler` e `useAsyncAction`
+#### Action hooks — `useErrorHandler` and `useAsyncAction`
 
-Para evitar repetição do mesmo bloco de loading + erro em toda tela, dois hooks encapsulam essas responsabilidades.
+To avoid repeating the same loading + error block in every screen, two hooks encapsulate these responsibilities.
 
-**`useErrorHandler`** — classifica e apresenta o erro automaticamente. Fica em `hooks/commons/useErrorHandler.ts`.
+**`useErrorHandler`** — classifies and presents the error automatically. Lives in `hooks/commons/useErrorHandler.ts`.
 
 ```typescript
 export function useErrorHandler() {
@@ -1182,13 +1182,13 @@ export function useErrorHandler() {
 }
 ```
 
-**`useAsyncAction`** — envolve qualquer ação assíncrona com overlay de loading e tratamento de erro. Fica em `hooks/commons/useAsyncAction.ts`.
+**`useAsyncAction`** — wraps any async action with a loading overlay and error handling. Lives in `hooks/commons/useAsyncAction.ts`.
 
 ```typescript
 interface AsyncActionOptions {
   onSuccess?: () => void
   onError?: (err: unknown) => boolean | void
-  overlay?: boolean  // default: true — false para telas de ação em lote
+  overlay?: boolean  // default: true — false for batch action screens
 }
 
 export function useAsyncAction() {
@@ -1210,9 +1210,9 @@ export function useAsyncAction() {
 }
 ```
 
-`onError` retorna `true` se tratou o erro — o handler padrão não é chamado. Sem retorno, cai no handler automaticamente.
+`onError` returns `true` if it handled the error — the default handler is not called. Without a return, falls through to the handler automatically.
 
-**Ação em lote com `overlay: false`** — para telas com múltiplas ações em sequência (ex: marcar presenças), desabilitar o overlay e gerenciar loading localmente por item:
+**Batch action with `overlay: false`** — for screens with multiple sequential actions (e.g., marking attendance), disable the overlay and manage loading locally per item:
 
 ```typescript
 const [loadingId, setLoadingId] = useState<string | null>(null)
@@ -1227,7 +1227,7 @@ const handleMark = (id: string) => runAction(
 )
 ```
 
-**Debounce para recarregar lista** — após ações em lote, a lista recarrega quando o usuário para de interagir. Tempo configurável em `src/config`:
+**Debounce to reload list** — after batch actions, the list reloads when the user stops interacting. Configurable time in `src/config`:
 
 ```typescript
 export const BATCH_ACTION_DEBOUNCE_MS = Number(
@@ -1246,17 +1246,17 @@ const scheduleRefresh = () => {
 
 ---
 
-### Listas paginadas
+### Paginated lists
 
-O modelo de paginação é sempre por cursor. Qual dos dois casos abaixo usar é ditado pela regra de negócio — não por preferência técnica.
+The pagination model is always cursor-based. Which of the two cases below to use is dictated by the business rule — not by technical preference.
 
 ---
 
-#### Caso 1 — Full scan: carregar tudo, tratar no frontend
+#### Case 1 — Full scan: load everything, handle on the frontend
 
-Usado quando a operação exige acesso ao conjunto completo de dados — ordenação arbitrária, filtros cruzados, seleção múltipla, exportação. O frontend busca todos os registros em lotes via cursor até o fim e aplica ordenação, filtragem e exibição localmente.
+Used when the operation requires access to the complete data set — arbitrary sorting, cross-filters, multiple selection, export. The frontend fetches all records in batches via cursor until the end and applies sorting, filtering, and display locally.
 
-Exemplos: administrar todos os usuários, gerenciar catálogo de produtos.
+Examples: administer all users, manage product catalog.
 
 ```typescript
 const [items, setItems] = useState<Item[]>([])
@@ -1280,17 +1280,17 @@ async function loadAll(): Promise<void> {
 }
 ```
 
-Filtro, ordenação e busca são feitos sobre `items` com `useMemo` — sem nova chamada à API.
+Filter, sorting, and search are done on `items` with `useMemo` — without a new API call.
 
-> O limite de volume viável para o Caso 1 depende do projeto, da tela e da regra de negócio. Quando o volume comprometer a performance do frontend, o filtro deve migrar para o backend — decisão documentada no arquivo `30+` do domínio.
+> The viable volume limit for Case 1 depends on the project, the screen, and the business rule. When the volume compromises frontend performance, the filter must migrate to the backend — a decision documented in the domain's `30+` file.
 
 ---
 
-#### Caso 2 — Continuação: carregar sob demanda
+#### Case 2 — Continuation: load on demand
 
-Usado quando os dados têm uma ordem natural (mais recentes, por data de criação) e o usuário avança conforme necessita. O frontend busca o primeiro lote e exibe um botão "Carregar mais" enquanto houver cursor. Scroll infinito não é usado — o usuário controla explicitamente quando buscar mais itens.
+Used when the data has a natural order (most recent, by creation date) and the user advances as needed. The frontend fetches the first batch and displays a "Load more" button while there is a cursor. Infinite scroll is not used — the user explicitly controls when to fetch more items.
 
-Exemplos: listar os 50 eventos mais recentes, mostrar produtos por ordem de criação.
+Examples: list the 50 most recent events, show products by creation order.
 
 ```typescript
 const [items, setItems] = useState<Item[]>([])
@@ -1335,31 +1335,31 @@ return (
 
 ---
 
-O tamanho do lote vem de `config`:
+The batch size comes from `config`:
 
 ```typescript
 // src/config/index.ts
 export const PAGE_SIZE = Number(process.env.EXPO_PUBLIC_PAGE_SIZE ?? 20)
 ```
 
-> Este documento não cobre WebSockets, SSE ou qualquer mecanismo de atualização em tempo real. Projetos que necessitem dessas funcionalidades devem documentá-las em um arquivo `30+`.
+> This document does not cover WebSockets, SSE, or any real-time update mechanism. Projects that require these features must document them in a `30+` file.
 
 ---
 
-### Estados Vazios
+### Empty States
 
-Quando uma lista não tem itens, o componente `EmptyState` substitui o conteúdo.
+When a list has no items, the `EmptyState` component replaces the content.
 
-- Ícone + mensagem contextual definidos pela tela — nunca genérico (`"Nenhum item"`)
-- Centralizado vertical e horizontalmente na tela
-- Ícone discreto — pequeno, acima da mensagem
-- Ação opcional — a tela passa `action` apenas quando faz sentido pelo negócio
+- Icon + contextual message defined by the screen — never generic (`"No items"`)
+- Centered vertically and horizontally on the screen
+- Discreet icon — small, above the message
+- Optional action — the screen passes `action` only when it makes sense for the business
 
 ```typescript
 // atom/feedback/EmptyState.tsx
 interface EmptyStateProps {
-  icon: string     // nome do ícone (ex: MaterialCommunityIcons)
-  message: string  // mensagem contextual — sempre via t()
+  icon: string     // icon name (e.g., MaterialCommunityIcons)
+  message: string  // contextual message — always via t()
   action?: {
     label: string
     onPress: () => void
@@ -1367,36 +1367,36 @@ interface EmptyStateProps {
 }
 ```
 
-**FAB** é um padrão separado do `EmptyState`. Aparece nas telas que permitem adição, independente de haver itens ou não.
+**FAB** is a separate pattern from `EmptyState`. It appears on screens that allow addition, regardless of whether there are items or not.
 
-Regras:
-- O ícone varia conforme a ação da tela — não é sempre `plus`
-- FAB e botão no header são ambos válidos — a tela decide conforme o contexto
-- O FAB nunca cobre conteúdo: o `FlatList` recebe `contentContainerStyle={{ paddingBottom: FAB_HEIGHT }}` para o último item respirar acima do botão
-- Quantidade de FABs por tela: perguntar ao humano — decisão específica de cada tela
-
----
-
-### Modais vs Navegação
-
-**Regra: preferir navegação a modal.** Toda interação que exigiria um modal — formulário, detalhe, confirmação de dados — vira uma tela nova com `navigate`.
-
-Modal só é justificado quando for impossível resolver com navegação — quando o bloqueio da tela de origem é parte essencial da experiência, não uma conveniência. Se houver dúvida, é uma tela nova.
+Rules:
+- The icon varies according to the screen action — it is not always `plus`
+- FAB and header button are both valid — the screen decides based on context
+- The FAB never covers content: the `FlatList` receives `contentContainerStyle={{ paddingBottom: FAB_HEIGHT }}` so the last item has space above the button
+- Number of FABs per screen: ask the human — specific decision for each screen
 
 ---
 
-### Layouts de tela
+### Modals vs Navigation
 
-Toda tela usa um dos layouts abaixo como esqueleto estrutural. Nunca montar a estrutura de scroll, teclado e rodapé diretamente na tela — o layout encapsula isso.
+**Rule: prefer navigation over modal.** Any interaction that would require a modal — form, detail, data confirmation — becomes a new screen with `navigate`.
+
+A modal is only justified when it is impossible to resolve with navigation — when blocking the originating screen is an essential part of the experience, not a convenience. When in doubt, it is a new screen.
+
+---
+
+### Screen layouts
+
+Every screen uses one of the layouts below as a structural skeleton. Never assemble the scroll, keyboard, and footer structure directly in the screen — the layout encapsulates this.
 
 #### `ListScreenLayout`
 
-Para telas com lista de dados. Gerencia o `FlatList` com pull-to-refresh, skeleton, "carregar mais" e FAB opcional.
+For screens with data lists. Manages the `FlatList` with pull-to-refresh, skeleton, "load more", and optional FAB.
 
 ```
 SafeAreaView
 └── FlatList (pull-to-refresh, skeleton, ListFooterComponent)
-FAB (absolute, canto inferior direito — opcional)
+FAB (absolute, bottom right corner — optional)
 ```
 
 ```typescript
@@ -1417,27 +1417,27 @@ interface ListScreenLayoutProps<T> {
 
 #### `FormScreenLayout`
 
-Para telas com formulário. Gerencia `KeyboardAvoidingView`, scroll dos campos e rodapé fixo com o botão de salvar.
+For screens with forms. Manages `KeyboardAvoidingView`, field scroll, and a fixed footer with the save button.
 
 ```
 KeyboardAvoidingView
-└── ScrollView (campos do formulário)
-Footer fixo (botão salvar — fora do scroll)
+└── ScrollView (form fields)
+Fixed footer (save button — outside scroll)
 ```
 
 ```typescript
 // layouts/forms/FormScreenLayout.tsx
 interface FormScreenLayoutProps {
-  children: React.ReactNode        // campos do formulário
+  children: React.ReactNode        // form fields
   onSave: () => void
   saveLabel?: string               // default: t('action.save')
-  saving?: boolean                 // loading no botão
-  saveDisabled?: boolean           // desabilita o botão
+  saving?: boolean                 // loading on button
+  saveDisabled?: boolean           // disables the button
 }
 ```
 
 ```typescript
-// uso na tela
+// usage in screen
 return (
   <FormScreenLayout
     onSave={handleSave}
@@ -1449,27 +1449,27 @@ return (
 )
 ```
 
-**`KeyboardAvoidingView`:** `behavior="padding"` no iOS, sem behavior no Android — o Android ajusta via `windowSoftInputMode` no `app.json`.
+**`KeyboardAvoidingView`:** `behavior="padding"` on iOS, no behavior on Android — Android adjusts via `windowSoftInputMode` in `app.json`.
 
 ---
 
-### Formulários
+### Forms
 
-#### Stack de validação
+#### Validation stack
 
-- **`react-hook-form`** — gerencia valores, erros e estado do formulário
-- **`zod`** — define o schema de validação com tipos TypeScript gerados automaticamente
-- **`zod-i18n-map`** — integra zod com o sistema de i18n do projeto para traduzir mensagens de validação
+- **`react-hook-form`** — manages form values, errors, and state
+- **`zod`** — defines the validation schema with automatically generated TypeScript types
+- **`zod-i18n-map`** — integrates zod with the project's i18n system to translate validation messages
 
-#### Comportamento de validação
+#### Validation behavior
 
-- **onBlur** — ao sair de um campo, valida aquele campo. Campos não tocados não exibem erro.
-- **No submit** — valida todos os campos, incluindo os não tocados.
-- **Botão de submit** — habilitado no estado inicial. Desabilitado quando há erros visíveis: `disabled={Object.keys(errors).length > 0}`.
+- **onBlur** — when leaving a field, validates that field. Untouched fields do not display errors.
+- **On submit** — validates all fields, including untouched ones.
+- **Submit button** — enabled in the initial state. Disabled when there are visible errors: `disabled={Object.keys(errors).length > 0}`.
 
 #### `useFormAction`
 
-Hook que encapsula todo o ciclo de um formulário: validação, check de dirty, overlay de loading e tratamento de erro. Usado em **todos os formulários** — criação e edição.
+Hook that encapsulates the complete form cycle: validation, dirty check, loading overlay, and error handling. Used in **all forms** — creation and editing.
 
 ```typescript
 // hooks/commons/useFormAction.ts
@@ -1484,7 +1484,7 @@ export function useFormAction<T>(form: UseFormReturn<T>) {
       async (data) => {
         errorCount.current = 0
         if (!form.formState.isDirty) {
-          navigation.goBack()  // nada mudou — finge que salvou, sem chamar a API
+          navigation.goBack()  // nothing changed — pretend it saved, without calling the API
           return
         }
         await runAction(() => action(data), options)
@@ -1501,17 +1501,17 @@ export function useFormAction<T>(form: UseFormReturn<T>) {
 }
 ```
 
-**Fluxo interno:**
-1. Valida todos os campos — marca os não tocados com erro se inválidos
-2. Se inválido 3 vezes seguidas — exibe toast orientando o usuário a verificar os campos (resolve campos fora da área visível em telas pequenas)
-3. Se nada mudou (`isDirty = false`) — navega de volta sem chamar a API
-4. Executa a ação via `useAsyncAction` — overlay + tratamento de erro
+**Internal flow:**
+1. Validates all fields — marks untouched ones with error if invalid
+2. If invalid 3 times in a row — displays a toast guiding the user to check the fields (resolves fields outside the visible area on small screens)
+3. If nothing changed (`isDirty = false`) — navigates back without calling the API
+4. Executes the action via `useAsyncAction` — overlay + error handling
 
 #### `useDestructiveAction`
 
-Hook para ações irreversíveis. Exibe dialog de confirmação, aguarda resposta, executa apenas no OK.
+Hook for irreversible actions. Displays a confirmation dialog, waits for response, executes only on OK.
 
-**Regra padrão: toda ação irreversível usa `useDestructiveAction`.** A exceção é quando um humano expressa que o dialog deve ser removido — nesse caso, documentar com comentário no código.
+**Default rule: every irreversible action uses `useDestructiveAction`.** The exception is when a human expresses that the dialog should be removed — in that case, document with an inline comment in the code.
 
 ```typescript
 // hooks/commons/useDestructiveAction.ts
@@ -1551,7 +1551,7 @@ export function useDestructiveAction() {
 }
 ```
 
-A mensagem do dialog é passada pela tela — contextual e específica, nunca genérica:
+The dialog message is passed by the screen — contextual and specific, never generic:
 
 ```typescript
 const { destructiveAction, ConfirmDialog } = useDestructiveAction()
@@ -1569,9 +1569,9 @@ return (
 )
 ```
 
-#### Separação de handlers e JSX
+#### Separation of handlers and JSX
 
-Handlers são definidos como `const` antes do `return` — nunca como funções inline no JSX.
+Handlers are defined as `const` before the `return` — never as inline functions in JSX.
 
 ```typescript
 export function SomeScreen() {
@@ -1600,31 +1600,31 @@ export function SomeScreen() {
 }
 ```
 
-Funções inline no `onPress` são permitidas apenas para casos triviais: `onPress={() => navigation.goBack()}`.
+Inline functions in `onPress` are only allowed for trivial cases: `onPress={() => navigation.goBack()}`.
 
-#### Feedback de sucesso
+#### Success feedback
 
-Toda ação que conclui com sucesso exibe um toast `success` — sem exceção. Mesmo quando a tela navega de volta, o toast aparece sobre a tela de destino.
+Every action that completes successfully displays a `success` toast — no exceptions. Even when the screen navigates back, the toast appears over the destination screen.
 
-**Regra de navegação após sucesso:**
-- Formulários (criação e edição) → toast + `goBack()`
-- Ações de propósito único (deletar, confirmar) → toast + `goBack()`
-- Ações em lote (marcar presenças, toggles em lista) → toast por ação + debounce para recarregar lista
+**Navigation rule after success:**
+- Forms (creation and editing) → toast + `goBack()`
+- Single-purpose actions (delete, confirm) → toast + `goBack()`
+- Batch actions (mark attendance, list toggles) → toast per action + debounce to reload list
 
-#### Campos obrigatórios
+#### Required fields
 
-Indicados com asterisco após o label: `Nome *`. Uma legenda discreta no topo do formulário explica o asterisco — uma vez, não em cada campo.
+Indicated with an asterisk after the label: `Name *`. A discreet legend at the top of the form explains the asterisk — once, not on every field.
 
 ```typescript
 <Text variant="bodySmall">{t('form.requiredFieldsNote')}</Text>
-<TextInput label={`${t('entity.name')} *`} ... />  // obrigatório
-<TextInput label={t('entity.phone')} ... />          // opcional
+<TextInput label={`${t('entity.name')} *`} ... />  // required
+<TextInput label={t('entity.phone')} ... />          // optional
 ```
 
-**Quando usar cada hook:**
+**When to use each hook:**
 
-| Hook | Quando usar |
+| Hook | When to use |
 |---|---|
-| `useFormAction` | Todo formulário — criação e edição |
-| `useAsyncAction` | Ações sem formulário e sem confirmação |
-| `useDestructiveAction` | Ações irreversíveis que precisam de confirmação |
+| `useFormAction` | Every form — creation and editing |
+| `useAsyncAction` | Actions without form and without confirmation |
+| `useDestructiveAction` | Irreversible actions that require confirmation |
