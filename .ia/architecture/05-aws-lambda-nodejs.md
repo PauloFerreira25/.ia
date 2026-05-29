@@ -51,6 +51,14 @@ const id = requirePathParam(event, 'id')                // ✅ — but {id} is w
 
 ---
 
+## ESLint
+
+### No eslint-disable
+
+Never use `eslint-disable`, `eslint-disable-next-line`, `eslint-disable-line`, or any variant of ESLint suppression comments in `.js` or `.ts` files. If an ESLint error appears, fix the code. If an existing `eslint-disable` is found, remove it and fix the underlying issue. If the issue cannot be resolved without suppressing the rule, stop and notify a human.
+
+---
+
 ## Language
 
 **Best practice: all identifiers in English.** Function names, variable names, path parameter names, handler file names, and any other code-level identifiers must be written in English. The only exception is when the human explicitly and deliberately requests otherwise.

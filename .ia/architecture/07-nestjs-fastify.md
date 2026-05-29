@@ -671,6 +671,12 @@ NestJS's built-in `HttpException` is never used — all errors extend `AppError`
 
 ---
 
+## ESLint — No eslint-disable
+
+Never use `eslint-disable`, `eslint-disable-next-line`, `eslint-disable-line`, or any variant of ESLint suppression comments in `.ts` files. If an ESLint error appears, fix the code. If an existing `eslint-disable` is found, remove it and fix the underlying issue. If the issue cannot be resolved without suppressing the rule, stop and notify a human.
+
+---
+
 ## Language
 
 **Best practice: all identifiers in English.** Class names, method names, variable names, file names, module names, decorator names, and any other code-level identifiers must be written in English. The only exception is when the human explicitly and deliberately requests otherwise.

@@ -283,6 +283,14 @@ Key rules enforced:
 
 Never use the legacy `.eslintrc` format.
 
+### No eslint-disable
+
+Never use `eslint-disable`, `eslint-disable-next-line`, `eslint-disable-line`, or any variant of ESLint suppression comments in `.js` or `.ts` files. Suppression comments hide problems instead of fixing them.
+
+If an ESLint error appears, fix the code to comply with the rule. If an existing `eslint-disable` is found, remove it and fix the underlying issue.
+
+If the underlying issue cannot be resolved without suppressing the rule, stop and notify a human — do not work around it with a disable comment.
+
 ---
 
 ## Type safety

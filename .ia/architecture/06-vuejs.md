@@ -330,6 +330,8 @@ npm install -D typescript-eslint eslint-plugin-vue eslint-plugin-import
 
 Erros de lint não são warnings — são erros. O CI rejeita código com erros de lint.
 
+**Sem eslint-disable.** Nunca use `eslint-disable`, `eslint-disable-next-line`, `eslint-disable-line` ou qualquer variante de supressão de ESLint em arquivos `.js`, `.ts` ou `.vue`. Se aparecer um erro de lint, corrija o código. Se um `eslint-disable` existente for encontrado, remova-o e corrija o problema subjacente. Se o problema não puder ser resolvido sem suprimir a regra, pare e avise um humano.
+
 ---
 
 ### Logs

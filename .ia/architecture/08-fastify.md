@@ -704,6 +704,14 @@ export const generateUUIDv7 = (): string => uuidv7()
 
 ---
 
+## ESLint — No eslint-disable
+
+Never use `eslint-disable`, `eslint-disable-next-line`, `eslint-disable-line`, or any variant of ESLint suppression comments in `.ts` files. If an ESLint error appears, fix the code. If an existing `eslint-disable` is found, remove it and fix the underlying issue. If the issue cannot be resolved without suppressing the rule, stop and notify a human.
+
+This rule is inherited from [02-nodejs-typescript.md](./02-nodejs-typescript.md) and is restated here for emphasis.
+
+---
+
 ## Language
 
 **Best practice: all identifiers in English.** This rule is inherited from [02-nodejs-typescript.md](./02-nodejs-typescript.md) and applies here without exception: function names, variable names, route paths, handler names, type names, file names, error codes, and log messages must be written in English. The only exception is when the human explicitly and deliberately requests otherwise.

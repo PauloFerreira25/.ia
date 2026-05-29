@@ -212,6 +212,8 @@ Every project must have a linter configured. Run before committing — the comma
 
 Lint errors are not warnings — they are errors. CI rejects code with lint errors. Linter-specific configuration (rules, plugins, extends) is defined by the project.
 
+**No eslint-disable.** Never use `eslint-disable`, `eslint-disable-next-line`, `eslint-disable-line`, or any variant of ESLint suppression comments in `.js`, `.ts`, or `.tsx` files. If an ESLint error appears, fix the code. If an existing `eslint-disable` is found, remove it and fix the underlying issue. If the issue cannot be resolved without suppressing the rule, stop and notify a human.
+
 ---
 
 ### Logs

@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find /projetos/pauloferreira25 -name \"*.md\" | sort)",
+      "Read(//projetos/pauloferreira25/**)"
+    ]
+  }
+}
