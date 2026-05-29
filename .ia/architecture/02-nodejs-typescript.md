@@ -1,11 +1,45 @@
 ---
 name: nodejs-typescript
-description: "Read before writing or modifying any Node.js + TypeScript code."
+description: "Read before writing or modifying any Node.js + TypeScript code. Start by reading the first 50 lines — the index tells you which sections are relevant to your task."
 ---
 
 # Node.js + TypeScript Architecture
 
 > This document is generic and project-agnostic. It describes architectural best practices and conventions that apply to any Node.js + TypeScript project, regardless of business domain. Examples use placeholder terms (`Entity`, `<domain>`, `<collection>`) — they represent concepts, not real business entities. Business rules, domain names, and project-specific decisions are never defined here.
+
+---
+
+## Index
+
+| Category | Section | When to consult |
+|---|---|---|
+| **Project setup** | [Filosofia](#filosofia) | Always — foundational principles |
+| | [ES Modules](#es-modules) | When configuring modules or writing imports |
+| | [tsconfig.json](#tsconfigjson) | When setting up TypeScript |
+| | [Path aliases](#path-aliases) | When using `@src` imports |
+| | [package.json scripts](#packagejson-scripts) | When setting up or modifying scripts |
+| | [npm packages](#npm-packages) | When installing dependencies |
+| **Code quality** | [ESLint](#eslint) | When configuring linting or resolving ESLint errors |
+| | [Type safety](#type-safety) | When writing types or using `any` / `as` |
+| | [Naming conventions](#naming-conventions) | Always — naming identifiers, files, directories |
+| | [Language](#language) | Always — identifiers in English |
+| **Architecture** | [Folder structure (DDD)](#folder-structure-ddd) | When creating files or directories |
+| | [Layer separation](#layer-separation) | When implementing handler, service, or repository |
+| | [Handler file splitting](#handler-file-splitting) | When creating new handlers |
+| | [Function signatures](#function-signatures) | When defining any function |
+| **Patterns** | [Reuse before writing](#reuse-before-writing) | Before implementing anything |
+| | [Pagination](#pagination) | When implementing list endpoints |
+| | [DTOs](#dtos) | When defining request/response schemas |
+| | [Identifiers](#identifiers) | When generating entity IDs |
+| | [Configuration](#configuration) | When working with environment variables |
+| | [Error handling](#error-handling) | When throwing or catching errors in any layer |
+| | [Logging](#logging) | When adding log statements to any layer |
+| | [Testing](#testing) | When writing tests |
+| **Monorepo** | [Monorepo and package resolution](#monorepo-and-package-resolution) | When working in a monorepo |
+| | [shared-libs](#shared-libs) | When creating or modifying shared libraries |
+| | [Type specialization](#type-specialization) | When using types from commons-types |
+
+---
 
 ## Filosofia
 

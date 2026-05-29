@@ -1,9 +1,23 @@
 ---
 name: devcontainer
-description: "Read before making any changes to .devcontainer, .devcontainer/docker-compose.yml, or VSCode settings."
+description: "Read before making any changes to .devcontainer, .devcontainer/docker-compose.yml, or VSCode settings. Start by reading the first 20 lines — the index tells you which sections are relevant to your task."
 ---
 
 # Devcontainer Architecture
+
+---
+
+## Index
+
+| Section | When to consult |
+|---|---|
+| [docker-compose.yml](#docker-composeyml) | When changing `.devcontainer/docker-compose.yml` |
+| [Data Volumes](#data-volumes) | When adding or modifying volume mounts |
+| [Service Files](#service-files) | When adding service-specific files or Dockerfiles |
+| [VSCode Configuration](#vscode-configuration) | When configuring VSCode extensions or settings |
+| [Language](#language) | Always — naming identifiers in English |
+
+---
 
 ## docker-compose.yml
 

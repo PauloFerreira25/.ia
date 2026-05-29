@@ -1,21 +1,24 @@
 ---
 name: aws-lambda-nodejs
-description: "Read before writing or modifying any AWS Lambda + Node.js code."
+description: "Read before writing or modifying any AWS Lambda + Node.js code. Start by reading the first 25 lines — the index tells you which sections are relevant to your task."
 ---
 
 # AWS Lambda + Node.js Architecture
 
 > This document is specific to this project's Lambda implementation patterns. It covers conventions, rules, and pitfalls that apply to every Lambda function in this repository.
+>
+> For general Node.js + TypeScript rules, see [02-nodejs-typescript.md](./02-nodejs-typescript.md). This document only covers what is specific to Lambda.
 
-## npm packages
+---
 
-When installing a dependency:
+## Index
 
-- Always install the latest version — run `npm install <package>` without specifying a version
-- Never manually edit `package.json` to add a dependency with a pinned version — always let npm resolve and record the version after installation
-- Specifying a version (`npm install <package>@x.y.z`) is only allowed when a human explicitly requests a specific version, or when another installed dependency already constrains that version as a peer dependency
-
-Pinning a specific version installs an outdated package instead of the current latest, accumulating security vulnerabilities over time. Every AI agent that hard-codes a version into `package.json` without running `npm install` introduces this risk.
+| Section | When to consult |
+|---|---|
+| [Path Parameters](#path-parameters) | When defining or naming API Gateway path parameters in CDK routes or handlers |
+| [npm packages](#npm-packages) | When installing dependencies |
+| [ESLint](#eslint) | When resolving ESLint errors |
+| [Language](#language) | Always — naming identifiers |
 
 ---
 
@@ -51,14 +54,18 @@ const id = requirePathParam(event, 'id')                // ✅ — but {id} is w
 
 ---
 
+## npm packages
+
+Follow the rules defined in [02-nodejs-typescript.md → npm packages](./02-nodejs-typescript.md#npm-packages).
+
+---
+
 ## ESLint
 
-### No eslint-disable
-
-Never use `eslint-disable`, `eslint-disable-next-line`, `eslint-disable-line`, or any variant of ESLint suppression comments in `.js` or `.ts` files. If an ESLint error appears, fix the code. If an existing `eslint-disable` is found, remove it and fix the underlying issue. If the issue cannot be resolved without suppressing the rule, stop and notify a human.
+Follow the rules defined in [02-nodejs-typescript.md → ESLint](./02-nodejs-typescript.md#eslint), including the no eslint-disable rule.
 
 ---
 
 ## Language
 
-**Best practice: all identifiers in English.** Function names, variable names, path parameter names, handler file names, and any other code-level identifiers must be written in English. The only exception is when the human explicitly and deliberately requests otherwise.
+Follow the rules defined in [02-nodejs-typescript.md → Language](./02-nodejs-typescript.md#language).

@@ -1,11 +1,40 @@
 ---
 name: nestjs-fastify
-description: "Read before writing or modifying any NestJS + Fastify code."
+description: "Read before writing or modifying any NestJS + Fastify code. Start by reading the first 40 lines — the index tells you which sections are relevant to your task."
 ---
 
 # NestJS + Fastify Architecture
 
 > ⚠️ **Deprecated — do not use.** NestJS does not support ES Modules, which is a hard requirement of this project (defined in `02-nodejs-typescript.md`). Use [08-fastify.md](./08-fastify.md) instead.
+
+---
+
+## Index
+
+| Category | Section | When to consult |
+|---|---|---|
+| **Overrides** | [Overrides from 02](#overrides-from-02) | Before starting any work — lists rules from 02 that do not apply here |
+| **Configuration** | [ES Modules](#es-modules) | When writing imports — CommonJS in NestJS |
+| | [package.json scripts](#packagejson-scripts) | When setting up scripts |
+| | [tsconfig.json](#tsconfigjson) | When configuring TypeScript — decorator options |
+| | [Configuration](#configuration) | When working with environment variables |
+| | [Folder Structure](#folder-structure) | When creating files or directories |
+| **Application setup** | [Fastify Adapter](#fastify-adapter) | When setting up main.ts, bootstrap, graceful shutdown |
+| | [CORS](#cors) | When configuring CORS |
+| | [Swagger](#swagger) | When setting up API docs |
+| | [Authentication](#authentication) | When securing routes — Guards, @Public() |
+| **Domain construction** | [AppModule](#appmodule) | When wiring the root module and DomainsModule |
+| | [Module Structure](#module-structure) | When creating a new domain module |
+| | [Layer Rules](#layer-rules) | When implementing controller, service, or repository |
+| | [DTOs](#dtos) | When defining request/response types — createZodDto |
+| | [Validation](#validation) | When validating request data — ZodValidationPipe |
+| | [Repository](#repository) | When implementing data access |
+| | [Response Serialization](#response-serialization) | When returning data from a controller — Schema.parse() |
+| **Standards** | [Error Handling](#error-handling) | When handling errors — AppErrorFilter, CatchAllFilter |
+| | [Interceptors vs Fastify Hooks](#interceptors-vs-fastify-hooks) | When adding cross-cutting concerns |
+| | [ESLint](#eslint) | When resolving ESLint errors — see 02 |
+| | [Language](#language) | Always — identifiers in English — see 02 |
+| | [Testing](#testing) | When writing tests |
 
 ---
 
@@ -671,15 +700,15 @@ NestJS's built-in `HttpException` is never used — all errors extend `AppError`
 
 ---
 
-## ESLint — No eslint-disable
+## ESLint
 
-Never use `eslint-disable`, `eslint-disable-next-line`, `eslint-disable-line`, or any variant of ESLint suppression comments in `.ts` files. If an ESLint error appears, fix the code. If an existing `eslint-disable` is found, remove it and fix the underlying issue. If the issue cannot be resolved without suppressing the rule, stop and notify a human.
+Follow the rules defined in [02-nodejs-typescript.md → ESLint](./02-nodejs-typescript.md#eslint), including the no eslint-disable rule.
 
 ---
 
 ## Language
 
-**Best practice: all identifiers in English.** Class names, method names, variable names, file names, module names, decorator names, and any other code-level identifiers must be written in English. The only exception is when the human explicitly and deliberately requests otherwise.
+Follow the rules defined in [02-nodejs-typescript.md → Language](./02-nodejs-typescript.md#language).
 
 ---
 
