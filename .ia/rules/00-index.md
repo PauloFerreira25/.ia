@@ -17,3 +17,7 @@ Read a rule file when the current task matches its scope description.
 | 10 | Verified Information | When providing any information or answer | [10-verified-information.md](10-verified-information.md) |
 | 11 | Concurrency Examples | When showing that tasks will run in parallel | [11-concurrency-examples.md](11-concurrency-examples.md) |
 | 12 | Document Answers | When the human answers a question from an AI agent | [12-document-answers.md](12-document-answers.md) |
+| 13 | Task Spec Directory | When generating any AI task spec | [13-task-spec-directory.md](13-task-spec-directory.md) |
+| 14 | No Monorepo Tooling | When working with or discussing the monorepo structure | [14-no-monorepo-tooling.md](14-no-monorepo-tooling.md) |
+| 15 | No Hardcoded Counts | When documenting lists of files, steps, or items | [15-no-hardcoded-counts.md](15-no-hardcoded-counts.md) |
+| 16 | No Self-Introduced Problems | When writing any edit or suggestion | [16-no-self-introduced-problems.md](16-no-self-introduced-problems.md) |

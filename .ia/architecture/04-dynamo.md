@@ -3,7 +3,7 @@ name: dynamo
 description: "Read before writing or modifying any DynamoDB code. Start by reading the first 20 lines — the index tells you which sections are relevant to your task."
 ---
 
-# DynamoDB — Decisões e Padrões
+# DynamoDB — Decisions and Patterns
 
 ---
 
@@ -11,15 +11,15 @@ description: "Read before writing or modifying any DynamoDB code. Start by readi
 
 | Section | When to consult |
 |---|---|
-| [Nomenclatura de GSI](#nomenclatura-de-gsi) | When creating or naming a Global Secondary Index |
-| [Criação de GSI](#criação-de-gsi) | Before adding a new GSI |
+| [GSI Naming](#gsi-naming) | When creating or naming a Global Secondary Index |
+| [GSI Creation](#gsi-creation) | Before adding a new GSI |
 | [Language](#language) | Always — naming identifiers in English |
 
 ---
 
-## Nomenclatura de GSI
+## GSI Naming
 
-Usar sempre nomes descritivos baseados no campo indexado, no padrão `{campo}-index`.
+Always use descriptive names based on the indexed field, following the pattern `{field}-index`.
 
 ```
 personId-index   ✅
@@ -28,15 +28,15 @@ GSI1             ❌
 GSI2             ❌
 ```
 
-O nome deve deixar claro o campo e a finalidade do índice sem precisar abrir o código.
+The name must make the field and the purpose of the index clear without having to open the code.
 
 ---
 
-## Criação de GSI
+## GSI Creation
 
-Só criar GSI quando houver código que o utilize. Não criar por antecipação.
+Only create a GSI when there is code that uses it. Do not create in anticipation.
 
-O DynamoDB permite adicionar GSI em tabelas existentes a qualquer momento, sem downtime e sem perda de dados — não há custo em esperar.
+DynamoDB allows adding GSIs to existing tables at any time, with no downtime and no data loss — there is no cost in waiting.
 
 ---
 

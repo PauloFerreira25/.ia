@@ -5,67 +5,67 @@ description: "Read before writing or modifying any Vue.js code."
 
 # Vue.js Architecture
 
-> Documento base para projetos Vue.js. Descreve decisões de arquitetura, convenções e responsabilidades de cada camada. Todos os exemplos assumem Vue 3 + Composition API + Vite + TypeScript. Leia antes de escrever ou modificar qualquer view, componente, composable, store ou arquivo de roteamento.
+> Base document for Vue.js projects. Describes architecture decisions, conventions, and responsibilities for each layer. All examples assume Vue 3 + Composition API + Vite + TypeScript. Read before writing or modifying any view, component, composable, store, or routing file.
 >
-> **Este documento prescreve como fazer — não descreve o que já está feito.** O que vale é a regra, não o exemplo. O estado atual do projeto pode diferir; o objetivo é convergir para estas diretrizes.
+> **This document prescribes how to do things — it does not describe what has already been done.** The rule is what matters, not the example. The current state of the project may differ; the goal is to converge toward these guidelines.
 >
-> **Valores de domínio nos exemplos são sempre ilustrativos.** Nomes de stores, namespaces de logger, códigos de erro, nomes de rotas, estruturas de pastas — quando aparecem em exemplos, mostram o padrão a seguir, não os valores obrigatórios. O projeto define os valores concretos; o documento define a estrutura.
+> **Domain values in examples are always illustrative.** Store names, logger namespaces, error codes, route names, folder structures — when they appear in examples, they show the pattern to follow, not the required values. The project defines the concrete values; the document defines the structure.
 >
-> **Sobre diretrizes que parecem específicas de projeto:** algumas decisões deste documento (como o formato do envelope HTTP ou o comportamento do cliente de autenticação) são boas práticas consolidadas, não imposições de um projeto específico. Quando não houver um documento de projeto que substitua ou complemente uma dessas diretrizes, esta é a regra vigente. Documentos numerados `30+` podem sobrescrever ou estender qualquer parte deste documento.
+> **On guidelines that seem project-specific:** some decisions in this document (such as the HTTP envelope format or the behavior of the authentication client) are established best practices, not impositions from a specific project. When there is no project document that overrides or complements one of these guidelines, this is the current rule. Documents numbered `30+` may override or extend any part of this document.
 
 ---
 
-## Índice
+## Index
 
-| Seção | Conteúdo | Quando ler |
+| Section | Contents | When to read |
 |---|---|---|
-| **S1 — Filosofia e Padrões** | Princípios gerais, Composition API, Atomic Design, type safety, convenções de nomes, linting, logs, testes, padrões visuais do projeto | Sempre — qualquer task |
-| **S2 — Infraestrutura** | Estrutura de pastas, camadas (view / composable / service / store / httpClient), envelope de resposta, roteamento, config, types, i18n, barrel exports | Ao criar ou alterar estrutura, novos arquivos, novas camadas |
-| **S3 — Implementação** | `authStore`, stores de domínio (bootstrap/clear), guards de rota (`getToken()`), views de erro | Somente ao implementar ou dar manutenção em: auth, sessão, bootstrap, fluxo de login, views de erro |
-| **S4 — Padrões de Interação** | Loading (`useAsyncState` local + overlay global), erros (filosofia, tipos, `useErrorHandler`, `useAsyncAction`), paginação (full scan / sob demanda), ações em lote, formulários (`useFormAction`, `useDestructiveAction`), estados vazios | Ao implementar qualquer view com loading, erro, lista, formulário ou ação |
+| **S1 — Philosophy and Patterns** | General principles, Composition API, Atomic Design, type safety, naming conventions, linting, logs, tests, project visual patterns | Always — any task |
+| **S2 — Infrastructure** | Folder structure, layers (view / composable / service / store / httpClient), response envelope, routing, config, types, i18n, barrel exports | When creating or changing structure, new files, new layers |
+| **S3 — Implementation** | `authStore`, domain stores (bootstrap/clear), route guards (`getToken()`), error views | Only when implementing or maintaining: auth, session, bootstrap, login flow, error views |
+| **S4 — Interaction Patterns** | Loading (`useAsyncState` local + global overlay), errors (philosophy, types, `useErrorHandler`, `useAsyncAction`), pagination (full scan / on demand), batch actions, forms (`useFormAction`, `useDestructiveAction`), empty states | When implementing any view with loading, error, list, form, or action |
 
-**Mapeamento task → seção:**
+**Task → section mapping:**
 
-- Criar ou editar qualquer view, componente, composable, util → **S1 + S2 + S4**
-- Dúvida sobre onde colocar um arquivo ou qual camada usar → **S2**
-- Implementar login, logout, bootstrap, view de erro → **S1 + S2 + S3**
-- Dar manutenção em `authStore`, router guards → **S3**
-- Implementar formulário → **S4** (`useFormAction`, `useDestructiveAction`)
-- Implementar lista com paginação ou ações por item → **S4** (Paginação, Ações em lote)
-- Implementar loading, erro ou estado vazio → **S4** (`useAsyncState`, `useErrorHandler`, `useAsyncAction`)
-- Implementar mock de service → **S2** (Service + regras de mock)
+- Create or edit any view, component, composable, util → **S1 + S2 + S4**
+- Unsure where to put a file or which layer to use → **S2**
+- Implement login, logout, bootstrap, error view → **S1 + S2 + S3**
+- Maintain `authStore`, router guards → **S3**
+- Implement a form → **S4** (`useFormAction`, `useDestructiveAction`)
+- Implement a list with pagination or per-item actions → **S4** (Pagination, Batch Actions)
+- Implement loading, error, or empty state → **S4** (`useAsyncState`, `useErrorHandler`, `useAsyncAction`)
+- Implement a service mock → **S2** (Service + mock rules)
 
 ---
 
-## S1 — Filosofia e Padrões
+## S1 — Philosophy and Patterns
 
-### Filosofia
+### Philosophy
 
-As mesmas decisões que guiam o backend, adaptadas para o frontend:
+The same decisions that guide the backend, adapted for the frontend:
 
-**Produção primeiro.** Toda decisão é tomada pensando no comportamento em produção. Conforto de desenvolvimento (mocks, dados fixos, rotas de atalho) é temporário e nunca deve chegar à versão final.
+**Production first.** Every decision is made with production behavior in mind. Development convenience (mocks, fixed data, shortcut routes) is temporary and must never reach the final version.
 
-**Consistência elimina decisão.** Onde buscar dados, como tratar erros, onde guardar estado, como estruturar a UI — essas respostas são sempre as mesmas.
+**Consistency eliminates decisions.** Where to fetch data, how to handle errors, where to store state, how to structure the UI — these answers are always the same.
 
-**Explícito sobre implícito.** Tipos declarados em interfaces nomeadas. Nenhum campo inferido de `any`. Estado global declarado em stores com tipos explícitos. Props tipadas com `defineProps<T>()`.
+**Explicit over implicit.** Types declared in named interfaces. No field inferred from `any`. Global state declared in stores with explicit types. Props typed with `defineProps<T>()`.
 
-**Mock é scaffolding, não arquitetura.** Mocks existem para permitir que o frontend avance antes do backend estar pronto. Todo mock tem uma data de validade: o momento em que o endpoint real for entregue. Nunca adicione lógica de negócio em um mock.
+**Mock is scaffolding, not architecture.** Mocks exist to allow the frontend to move forward before the backend is ready. Every mock has an expiration date: the moment the real endpoint is delivered. Never add business logic to a mock.
 
-**Reutilizar antes de criar.** Antes de escrever qualquer coisa, verificar se já existe no projeto — ou nas libs instaladas — um componente, composable, util, service ou tipo que resolva o problema.
+**Reuse before creating.** Before writing anything, check whether there is already — in the project or in installed libs — a component, composable, util, service, or type that solves the problem.
 
-**Não existe? Pergunte antes de criar.** Se o componente necessário não existe no projeto nem nas libs instaladas, não crie por conta própria. Pergunte ao usuário: o que esse componente deve fazer, como deve se comportar, quais variações precisa suportar, onde será usado. Criar um componente sem essas respostas é prototipar — e este não é um projeto de prototipação.
+**Does it not exist? Ask before creating.** If the needed component does not exist in the project or in installed libs, do not create it on your own. Ask the user: what should this component do, how should it behave, what variations does it need to support, where will it be used. Creating a component without these answers is prototyping — and this is not a prototyping project.
 
-**Projeto real, não protótipo.** A solução mais curta raramente é a correta. O critério não é "funciona agora" — é "funciona bem, é consistente e pode ser mantido". Atalhos que economizam minutos criam horas de retrabalho.
+**Real project, not a prototype.** The shortest solution is rarely the correct one. The criterion is not "works now" — it is "works well, is consistent, and can be maintained". Shortcuts that save minutes create hours of rework.
 
-**Separação de responsabilidade.** Cada camada tem uma responsabilidade e não ultrapassa sua fronteira. A view não faz chamadas HTTP. O service não conhece roteamento. A store não conhece a API. O componente não conhece a store.
+**Separation of concerns.** Each layer has one responsibility and does not cross its boundary. The view does not make HTTP calls. The service does not know about routing. The store does not know the API. The component does not know the store.
 
-**UI construída em camadas.** A interface segue o modelo Atomic Design: atoms formam molecules, molecules formam organisms, organisms compõem layouts, layouts sustentam views. Nenhuma camada pula um nível. Essa hierarquia garante que mudar um atom propaga a mudança para todo o sistema de forma previsível.
+**UI built in layers.** The interface follows the Atomic Design model: atoms form molecules, molecules form organisms, organisms compose layouts, layouts sustain views. No layer skips a level. This hierarchy ensures that changing an atom propagates the change throughout the system in a predictable way.
 
 ---
 
 ### Composition API
 
-Sempre use a Composition API com `<script setup lang="ts">`. Nunca use a Options API.
+Always use the Composition API with `<script setup lang="ts">`. Never use the Options API.
 
 ```vue
 <!-- wrong -->
@@ -86,17 +86,17 @@ function save(): void { /* ... */ }
 </script>
 ```
 
-`<script setup>` é a forma canônica do Vue 3. Oferece melhor inferência de tipos, menos boilerplate e melhor tree-shaking.
+`<script setup>` is the canonical form of Vue 3. It offers better type inference, less boilerplate, and better tree-shaking.
 
-**Regras de reatividade:**
+**Reactivity rules:**
 
-- Use `ref()` para primitivos e `reactive()` para objetos quando o objeto inteiro precisa de reatividade
-- Prefira `ref()` na maioria dos casos — é mais consistente e evita o problema de desestruturação de `reactive()`
-- Use `computed()` para valores derivados — nunca recalcule no template
-- Use `watch()` e `watchEffect()` com parcimônia — na maioria dos casos, `computed()` resolve
+- Use `ref()` for primitives and `reactive()` for objects when the entire object needs reactivity
+- Prefer `ref()` in most cases — it is more consistent and avoids the destructuring problem of `reactive()`
+- Use `computed()` for derived values — never recalculate in the template
+- Use `watch()` and `watchEffect()` sparingly — in most cases, `computed()` is sufficient
 
 ```typescript
-// correct — ref para primitivo, computed para valor derivado
+// correct — ref for primitive, computed for derived value
 const items  = ref<Item[]>([])
 const isEmpty = computed(() => items.value.length === 0)
 ```
@@ -128,7 +128,7 @@ const isEmpty = computed(() => items.value.length === 0)
 
 #### Path alias
 
-Use `@/` como alias para `src/`. Nunca use caminhos relativos com `../` para importar fora do diretório atual.
+Use `@/` as an alias for `src/`. Never use relative paths with `../` to import from outside the current directory.
 
 ```typescript
 // wrong
@@ -138,7 +138,7 @@ import { userService } from '../../../services/user/userService'
 import { userService } from '@/services/user/userService'
 ```
 
-Configure o alias no `vite.config.ts`:
+Configure the alias in `vite.config.ts`:
 
 ```typescript
 // vite.config.ts
@@ -160,32 +160,32 @@ export default defineConfig({
 
 ### Atomic Design
 
-A UI do projeto segue o modelo **Atomic Design**. Cada peça de interface pertence a exatamente um nível, e esse nível define seu contrato de responsabilidade.
+The project UI follows the **Atomic Design** model. Each piece of interface belongs to exactly one level, and that level defines its responsibility contract.
 
-| Nível        | Onde                   | Descrição                                                                                                                                              |
-| ------------ | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Atom**     | `components/atom/`     | Peça mínima e indivisível. Sem composição de outros componentes do projeto. Exemplos: `Button.vue`, `Badge.vue`, `Input.vue`.                          |
-| **Molecule** | `components/molecule/` | Composição de atoms com um propósito único. Exemplos: `SearchBar.vue` (input + botão), `ListItem.vue` (avatar + texto + badge).                        |
-| **Organism** | `components/organism/` | Seção completa e autossuficiente, composta de atoms e molecules. Exemplos: `UserCard.vue`, tabela com header e paginação.                              |
-| **Layout**   | `layouts/`             | Esqueleto estrutural da view — define onde ficam header, conteúdo e footer. Não contém dados. Exemplos: `ListLayout.vue`, `FormLayout.vue`.            |
-| **View**     | `views/`               | A página em si. Usa um layout, compõe organisms/molecules/atoms, busca dados via services e lida com roteamento.                                       |
+| Level        | Where                  | Description                                                                                                                                              |
+| ------------ | ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Atom**     | `components/atom/`     | Minimum and indivisible piece. No composition of other project components. Examples: `Button.vue`, `Badge.vue`, `Input.vue`.                             |
+| **Molecule** | `components/molecule/` | Composition of atoms with a single purpose. Examples: `SearchBar.vue` (input + button), `ListItem.vue` (avatar + text + badge).                          |
+| **Organism** | `components/organism/` | Complete and self-contained section, composed of atoms and molecules. Examples: `UserCard.vue`, table with header and pagination.                         |
+| **Layout**   | `layouts/`             | Structural skeleton of the view — defines where header, content, and footer go. Contains no data. Examples: `ListLayout.vue`, `FormLayout.vue`.           |
+| **View**     | `views/`               | The page itself. Uses a layout, composes organisms/molecules/atoms, fetches data via services, and handles routing.                                       |
 
-#### Regras
+#### Rules
 
-- Cada nível só pode compor elementos do seu nível ou de níveis inferiores. Um atom não usa molecules; uma molecule não usa organisms.
-- Dentro de cada nível (`atom/`, `molecule/`, `organism/`), os componentes são organizados em subdiretórios por categoria funcional (ex: `atom/buttons/`, `atom/badges/`).
-- Nenhum componente abaixo de View conhece o router, stores ou services diretamente.
-- Antes de criar qualquer componente novo, verificar se já existe um no nível adequado que resolva o problema.
-- **Componentes de libs podem ser usados em qualquer nível.** Atoms, molecules e organisms podem usar diretamente componentes das libs instaladas.
-- **Só crie um componente se for uma especialização.** Se a lib já oferece um botão, use-o diretamente. Crie um `atom/buttons/BtnConfirm.vue` apenas se houver comportamento ou estilo específico do projeto que justifique a especialização. Wrappers sem propósito são proibidos.
+- Each level can only compose elements from its own level or lower levels. An atom does not use molecules; a molecule does not use organisms.
+- Within each level (`atom/`, `molecule/`, `organism/`), components are organized in subdirectories by functional category (e.g., `atom/buttons/`, `atom/badges/`).
+- No component below View knows the router, stores, or services directly.
+- Before creating any new component, check whether one already exists at the appropriate level that solves the problem.
+- **Lib components can be used at any level.** Atoms, molecules, and organisms may use components from installed libs directly.
+- **Only create a component if it is a specialization.** If the lib already offers a button, use it directly. Create an `atom/buttons/BtnConfirm.vue` only if there is project-specific behavior or styling that justifies the specialization. Wrappers without purpose are prohibited.
 
 ---
 
 ### Type safety
 
-#### Sem `any`
+#### No `any`
 
-Nunca use `any`. Se o tipo não é conhecido, use `unknown` e faça narrowing antes de usar o valor.
+Never use `any`. If the type is unknown, use `unknown` and narrow before using the value.
 
 ```typescript
 // wrong
@@ -197,9 +197,9 @@ function isUser(value: unknown): value is User {
 }
 ```
 
-#### Props tipadas
+#### Typed props
 
-Sempre tipar props com `defineProps<T>()`. Nunca use a forma de array ou objeto sem tipos.
+Always type props with `defineProps<T>()`. Never use the array form or an object without types.
 
 ```typescript
 // wrong
@@ -213,9 +213,9 @@ interface Props {
 const props = defineProps<Props>()
 ```
 
-#### Emits tipados
+#### Typed emits
 
-Sempre tipar emits com `defineEmits<T>()`.
+Always type emits with `defineEmits<T>()`.
 
 ```typescript
 // correct
@@ -227,11 +227,11 @@ const emit = defineEmits<{
 
 ---
 
-### Nomes de arquivos e convenções
+### File names and conventions
 
-**Componentes Vue usam `PascalCase.vue`.** O Vue exige que componentes com letra maiúscula sejam tratados como componentes customizados, não elementos HTML.
+**Vue components use `PascalCase.vue`.** Vue requires that components starting with an uppercase letter be treated as custom components, not HTML elements.
 
-**Views encapsulam a hierarquia de acesso.** O nome começa com o nível de acesso (`Public` ou `Private`), seguido do domínio e da ação — formando uma cadeia autodocumentada que elimina colisões entre views de domínios diferentes.
+**Views encapsulate the access hierarchy.** The name starts with the access level (`Public` or `Private`), followed by the domain and the action — forming a self-documenting chain that eliminates collisions between views from different domains.
 
 ```
 Public  + Auth  + Login       → PublicAuthLoginView.vue
@@ -240,42 +240,42 @@ Private + Admin + Users       → PrivateAdminUsersView.vue
 Private + Admin + Users + Add → PrivateAdminUsersAddView.vue
 ```
 
-**Arquivos:**
+**Files:**
 
-| Tipo        | Convenção                                                                | Exemplo                                        |
+| Type        | Convention                                                               | Example                                        |
 | ----------- | ------------------------------------------------------------------------ | ---------------------------------------------- |
-| View        | `PascalCase` + `View.vue` seguindo hierarquia de acesso                  | `PrivateAdminUsersView.vue`                    |
-| Atom        | `PascalCase.vue` dentro de `atom/<categoria>/`                           | `atom/buttons/BtnBack.vue`                     |
-| Molecule    | `PascalCase.vue` dentro de `molecule/<categoria>/`                       | `molecule/cards/EventCard.vue`                 |
-| Organism    | `PascalCase.vue` dentro de `organism/<categoria>/`                       | `organism/lists/UserList.vue`                  |
-| Layout      | `PascalCase` + `Layout.vue` dentro de `layouts/<categoria>/`             | `layouts/forms/FormLayout.vue`                 |
+| View        | `PascalCase` + `View.vue` following the access hierarchy                 | `PrivateAdminUsersView.vue`                    |
+| Atom        | `PascalCase.vue` inside `atom/<category>/`                               | `atom/buttons/BtnBack.vue`                     |
+| Molecule    | `PascalCase.vue` inside `molecule/<category>/`                           | `molecule/cards/EventCard.vue`                 |
+| Organism    | `PascalCase.vue` inside `organism/<category>/`                           | `organism/lists/UserList.vue`                  |
+| Layout      | `PascalCase` + `Layout.vue` inside `layouts/<category>/`                 | `layouts/forms/FormLayout.vue`                 |
 | Store       | `camelCase` + `Store.ts`                                                 | `authStore.ts`                                 |
 | Service     | `camelCase` + `Service.ts`                                               | `userService.ts`                               |
 | Mock        | `camelCase` + `Service.mock.ts`                                          | `userService.mock.ts`                          |
-| Composable  | `camelCase` com prefixo `use` + `.ts` dentro de `composables/<domínio>/` | `composables/commons/useAsyncAction.ts`        |
-| Util        | `camelCase` descrevendo a operação + `.ts` dentro de `utils/<domínio>/`  | `utils/dateTime/formatter.ts`                  |
-| Tipo        | `camelCase.ts` dentro de `types/<domínio>/`                              | `types/user/user.model.ts`                     |
+| Composable  | `camelCase` with `use` prefix + `.ts` inside `composables/<domain>/`     | `composables/commons/useAsyncAction.ts`        |
+| Util        | `camelCase` describing the operation + `.ts` inside `utils/<domain>/`    | `utils/dateTime/formatter.ts`                  |
+| Type        | `camelCase.ts` inside `types/<domain>/`                                  | `types/user/user.model.ts`                     |
 | Config      | `camelCase.ts`                                                           | `config/index.ts`                              |
 
-**Identificadores no código:**
+**Identifiers in code:**
 
-- `camelCase` — variáveis, funções, parâmetros, propriedades de objetos, exports de services e stores
-- `PascalCase` — componentes Vue (obrigação do framework), interfaces e type aliases
-- Nomes descritivos e autoexplicativos — evite abreviações
+- `camelCase` — variables, functions, parameters, object properties, service and store exports
+- `PascalCase` — Vue components (framework requirement), interfaces and type aliases
+- Descriptive and self-explanatory names — avoid abbreviations
 
 ---
 
-### Idioma dos identificadores
+### Language of identifiers
 
-**Boa prática: todos os identificadores em inglês.** Nomes de variáveis, funções, componentes Vue, types, interfaces, arquivos, stores, services, composables, utils e qualquer outro elemento do código devem ser escritos em inglês. Isso promove consistência, facilita leitura por ferramentas e integrações internacionais, e elimina ambiguidade em equipes mistas.
+**Best practice: all identifiers in English.** Variable names, functions, Vue components, types, interfaces, files, stores, services, composables, utils, and any other code element must be written in English. This promotes consistency, improves readability by tools and international integrations, and eliminates ambiguity in mixed teams.
 
-**Exceção: quando o humano pedir explicitamente.** Se o humano solicitar nomes em outro idioma de forma deliberada, respeite a decisão. A regra padrão é inglês — qualquer desvio deve ser solicitado de forma explícita.
+**Exception: when the human explicitly requests it.** If the human deliberately requests names in another language, respect the decision. The default rule is English — any deviation must be explicitly requested.
 
 ---
 
 ### Linting
 
-Todo projeto deve ter ESLint configurado com `typescript-eslint` e `eslint-plugin-vue`:
+Every project must have ESLint configured with `typescript-eslint` and `eslint-plugin-vue`:
 
 ```javascript
 // eslint.config.js
@@ -328,15 +328,15 @@ Install required plugins:
 npm install -D typescript-eslint eslint-plugin-vue eslint-plugin-import
 ```
 
-Erros de lint não são warnings — são erros. O CI rejeita código com erros de lint.
+Lint errors are not warnings — they are errors. CI rejects code with lint errors.
 
-**Sem eslint-disable.** Nunca use `eslint-disable`, `eslint-disable-next-line`, `eslint-disable-line` ou qualquer variante de supressão de ESLint em arquivos `.js`, `.ts` ou `.vue`. Se aparecer um erro de lint, corrija o código. Se um `eslint-disable` existente for encontrado, remova-o e corrija o problema subjacente. Se o problema não puder ser resolvido sem suprimir a regra, pare e avise um humano.
+**No eslint-disable.** Never use `eslint-disable`, `eslint-disable-next-line`, `eslint-disable-line`, or any variant of ESLint suppression in `.js`, `.ts`, or `.vue` files. If a lint error appears, fix the code. If an existing `eslint-disable` is found, remove it and fix the underlying problem. If the problem cannot be resolved without suppressing the rule, stop and notify a human.
 
 ---
 
 ### Logs
 
-Todo log do projeto passa pelo `logger` — nunca use `console.log`, `console.info` ou `console.warn` diretamente no código. Logs diretos no console não têm controle de nível, não têm namespace e não podem ser desligados em produção.
+All project logs go through `logger` — never use `console.log`, `console.info`, or `console.warn` directly in the code. Direct console logs have no level control, no namespace, and cannot be turned off in production.
 
 ```typescript
 // src/utils/logger/logger.ts
@@ -350,83 +350,83 @@ export const logger = {
 ```
 
 ```typescript
-// uso
+// usage
 import { logger } from '@/utils/logger/logger'
 
 logger.auth.debug('bootstrap started')
 logger.service.error('failed to fetch users', error)
 ```
 
-A biblioteca de logging é definida pelo projeto. O padrão acima mostra a interface esperada — namespaces por camada, níveis configuráveis por ambiente.
+The logging library is defined by the project. The example above shows the expected interface — namespaces per layer, configurable levels per environment.
 
-Regras:
+Rules:
 
-- Nunca commitar `console.log` — o linter deve bloquear
-- `logger.error` e `logger.warn` ativos em produção (enviados para serviço de monitoramento)
-- `logger.debug` e `logger.info` silenciados em produção por padrão
+- Never commit `console.log` — the linter must block it
+- `logger.error` and `logger.warn` are active in production (sent to monitoring service)
+- `logger.debug` and `logger.info` are silenced in production by default
 
 ---
 
-### Testes
+### Tests
 
-Use Vitest como test runner. Integra com Vite nativamente e entende TypeScript e ESM sem configuração adicional.
+Use Vitest as the test runner. It integrates natively with Vite and understands TypeScript and ESM without additional configuration.
 
-**Filosofia de testes:**
+**Testing philosophy:**
 
-- Teste no nível mais alto possível. O teste correto para uma view é um teste E2E que simula o usuário usando o app — cobre view, store e service ao mesmo tempo.
-- Testes de componente em isolamento raramente compensam o custo de manutenção.
+- Test at the highest level possible. The correct test for a view is an E2E test that simulates the user using the app — it covers view, store, and service all at once.
+- Component tests in isolation rarely justify their maintenance cost.
 
-| O que testar          | Nível | Justificativa                                                                 |
+| What to test          | Level | Justification                                                                 |
 | --------------------- | ----- | ----------------------------------------------------------------------------- |
-| `utils/`              | Unit  | Funções puras, fácil de testar e alto valor                                   |
-| `composables/`        | Unit  | Lógica reutilizável, testável sem DOM completo                                |
-| Fluxos de view        | E2E   | Cobre tudo de uma vez, é o "usuário usando"                                   |
-| Componentes isolados  | —     | Evitar — E2E já cobre, e testes de componente tendem a testar implementação   |
+| `utils/`              | Unit  | Pure functions, easy to test and high value                                   |
+| `composables/`        | Unit  | Reusable logic, testable without a full DOM                                   |
+| View flows            | E2E   | Covers everything at once — it is the "user using the app"                    |
+| Isolated components   | —     | Avoid — E2E already covers them, and component tests tend to test implementation |
 
-A ferramenta de E2E (Playwright ou Cypress) é definida pelo projeto no arquivo `30+`.
-
----
-
-### Padrões visuais do projeto (`XX-ui-patterns.md`)
-
-Este documento cobre arquitetura e princípios — decisões que valem para qualquer projeto Vue.js. Decisões visuais específicas do projeto pertencem a um documento separado, numerado na faixa `30+`, seguindo o índice em `00-index.md`.
-
-**Todo projeto que usa este documento base deve criar seu próprio arquivo de padrões visuais.** Sem ele, cada view inventa sua própria resposta para situações recorrentes — e a inconsistência é inevitável.
-
-Esse arquivo cobre as decisões que se repetem em toda view mas que dependem do design do projeto. Exemplos do que precisa ser definido lá:
-
-- Como exibir estado de carregamento
-- Como exibir erros ao usuário
-- Como exibir listas vazias
-- Como estruturar formulários e exibir erros de validação
-- Componentes visuais recorrentes (`ConfirmDialog`, `EmptyState`, `SkeletonCard`)
-
-A lista não é fechada. Sempre que uma situação recorrente não tiver resposta definida, a decisão vai para esse arquivo — não fica implícita no código.
+The E2E tool (Playwright or Cypress) is defined by the project in the `30+` file.
 
 ---
 
-## S2 — Infraestrutura
+### Project visual patterns (`XX-ui-patterns.md`)
 
-### Instalação de pacotes
+This document covers architecture and principles — decisions that apply to any Vue.js project. Project-specific visual decisions belong to a separate document, numbered in the `30+` range, following the index in `00-index.md`.
 
-Sempre instale pacotes sem especificar versão:
+**Every project that uses this base document must create its own visual patterns file.** Without it, each view invents its own answer to recurring situations — and inconsistency is inevitable.
+
+That file covers decisions that repeat across every view but depend on the project's design. Examples of what needs to be defined there:
+
+- How to display a loading state
+- How to display errors to the user
+- How to display empty lists
+- How to structure forms and display validation errors
+- Recurring visual components (`ConfirmDialog`, `EmptyState`, `SkeletonCard`)
+
+The list is not exhaustive. Whenever a recurring situation has no defined answer, the decision goes into that file — it does not remain implicit in the code.
+
+---
+
+## S2 — Infrastructure
+
+### Package installation
+
+Always install packages without specifying a version:
 
 ```
 npm install <package>
 ```
 
-- Nunca edite o `package.json` manualmente para adicionar uma dependência com versão fixada
-- Especificar versão (`npm install <package>@x.y.z`) só é permitido quando um humano solicitar explicitamente, ou quando outra dependência já instalada exigir aquela versão como peer dependency
+- Never manually edit `package.json` to add a dependency with a fixed version
+- Specifying a version (`npm install <package>@x.y.z`) is only allowed when a human explicitly requests it, or when another already-installed dependency requires that version as a peer dependency
 
-Fixar uma versão instala um pacote desatualizado em vez da versão atual, acumulando vulnerabilidades de segurança ao longo do tempo. Todo agente de IA que escreve uma versão diretamente no `package.json` sem executar `npm install` introduz esse risco.
+Pinning a version installs an outdated package instead of the current version, accumulating security vulnerabilities over time. Any AI agent that writes a version directly into `package.json` without running `npm install` introduces this risk.
 
 ---
 
-### Estrutura de pastas
+### Folder structure
 
 ```
 src/
-├── components/       ← peças de UI sem lógica de negócio (Atomic Design)
+├── components/       ← UI pieces without business logic (Atomic Design)
 │   ├── atom/
 │   │   ├── buttons/
 │   │   ├── badges/
@@ -436,66 +436,66 @@ src/
 │   │   └── list-items/
 │   └── organism/
 │       └── ...
-├── layouts/          ← templates estruturais de view
+├── layouts/          ← structural view templates
 │   ├── forms/        ← FormLayout.vue
 │   └── list/         ← ListLayout.vue
-├── views/            ← views espelhando a hierarquia de rotas
+├── views/            ← views mirroring the route hierarchy
 │   ├── public/
 │   │   ├── auth/     ← PublicAuthLoginView.vue
 │   │   └── error/    ← PublicErrorGenericView.vue, PublicErrorBootstrapView.vue
 │   └── private/
 │       └── <domain>/ ← Private<Domain><Action>View.vue
-├── router/           ← Vue Router organizado por hierarquia de acesso
-│   ├── index.ts      ← createRouter, guards globais
-│   ├── public.ts     ← rotas públicas
-│   └── private.ts    ← rotas privadas (meta: { requiresAuth: true })
-├── stores/           ← Pinia stores por entidade
-├── services/         ← chamadas à API (real + mock)
-│   └── api/          ← clientes HTTP
-├── composables/      ← lógica com estado reutilizável (equivalente a hooks)
-│   └── commons/      ← composables genéricos sem domínio específico
-├── config/           ← variáveis de ambiente — um único index.ts
-├── types/            ← interfaces e tipos TypeScript, subdiretório por domínio
-│   └── router/       ← declaração de RouteMeta
-├── utils/            ← funções puras sem reatividade Vue
+├── router/           ← Vue Router organized by access hierarchy
+│   ├── index.ts      ← createRouter, global guards
+│   ├── public.ts     ← public routes
+│   └── private.ts    ← private routes (meta: { requiresAuth: true })
+├── stores/           ← Pinia stores per entity
+├── services/         ← API calls (real + mock)
+│   └── api/          ← HTTP clients
+├── composables/      ← reusable stateful logic (equivalent to hooks)
+│   └── commons/      ← generic composables without a specific domain
+├── config/           ← environment variables — a single index.ts
+├── types/            ← TypeScript interfaces and types, subdirectory per domain
+│   └── router/       ← RouteMeta declaration
+├── utils/            ← pure functions without Vue reactivity
 │   ├── dateTime/
 │   └── string/
-└── locales/          ← arquivos de tradução i18n
+└── locales/          ← i18n translation files
     ├── pt-BR.json
     └── en.json
 ```
 
 ---
 
-### Camadas e responsabilidades
+### Layers and responsibilities
 
 #### View (`views/`)
 
-A view é responsável por:
+The view is responsible for:
 
-- Renderizar a UI com base no estado local e nas stores
-- Chamar services para buscar ou modificar dados
-- Tratar estados de loading e erro locais
-- Navegar entre rotas
+- Rendering the UI based on local state and stores
+- Calling services to fetch or modify data
+- Handling local loading and error states
+- Navigating between routes
 
-A view **nunca**:
+The view **never**:
 
-- Faz chamadas HTTP diretamente
-- Contém lógica de negócio ou transformação de dados
-- Conhece os detalhes de implementação do service
+- Makes HTTP calls directly
+- Contains business logic or data transformation
+- Knows the implementation details of the service
 
 ```typescript
-// wrong — view chamando fetch diretamente
+// wrong — view calling fetch directly
 const data = await fetch('/v1/users')
 
-// correct — view chamando o service
+// correct — view calling the service
 const users = await userService.list()
 ```
 
-**Tratamento de erros na view.** Toda chamada a um service deve estar dentro de um `try/catch`. A view decide o que fazer com o erro:
+**Error handling in the view.** Every service call must be inside a `try/catch`. The view decides what to do with the error:
 
-- Erro de negócio (validação falhou, recurso não encontrado) → `ref` local, feedback inline ao usuário
-- Erro crítico (falha irrecuperável, estado inválido) → `useReportCriticalError()` → `errorStore.setError(err)` + `router.push({ name: 'public-error-generic' })`
+- Business error (validation failed, resource not found) → local `ref`, inline feedback to the user
+- Critical error (unrecoverable failure, invalid state) → `useReportCriticalError()` → `errorStore.setError(err)` + `router.push({ name: 'public-error-generic' })`
 
 ```typescript
 const reportCriticalError = useReportCriticalError()
@@ -504,35 +504,35 @@ try {
   users.value = await userService.list()
 } catch (err) {
   if (err instanceof ApiError && err.code === 'NOT_FOUND') {
-    errorMessage.value = t('user.notFound')  // erro esperado — inline
+    errorMessage.value = t('user.notFound')  // expected error — inline
   } else {
-    reportCriticalError(err)  // erro inesperado — errorStore + redirect
+    reportCriticalError(err)  // unexpected error — errorStore + redirect
   }
 }
 ```
 
 #### Service (`services/`)
 
-O service é responsável por:
+The service is responsible for:
 
-- Fazer chamadas HTTP via `request()` do `httpClient`
-- Encapsular a URL, método e payload de cada endpoint
-- Retornar os dados tipados para a view
+- Making HTTP calls via `request()` from `httpClient`
+- Encapsulating the URL, method, and payload for each endpoint
+- Returning typed data to the view
 
-O service **nunca**:
+The service **never**:
 
-- Conhece o router ou estado da UI
-- Conhece stores — não importa nem acessa nenhuma store
-- Contém lógica de negócio de domínio
-- É chamado por outro service
+- Knows the router or UI state
+- Knows stores — it does not import or access any store
+- Contains domain business logic
+- Is called by another service
 
-O padrão de service tem dois arquivos, organizados em subdiretórios por domínio:
+The service pattern has two files, organized in subdirectories by domain:
 
 ```
 services/
 ├── api/
-│   ├── backend.httpClient.ts     ← backend principal
-│   └── erp.httpClient.ts         ← backend ERP (quando necessário)
+│   ├── backend.httpClient.ts     ← main backend
+│   └── erp.httpClient.ts         ← ERP backend (when needed)
 ├── auth/
 │   ├── authService.ts
 │   └── authService.mock.ts
@@ -541,22 +541,22 @@ services/
     └── userService.mock.ts
 ```
 
-Views importam **apenas** o service real. O mock é detalhe de implementação do service:
+Views import **only** the real service. The mock is an implementation detail of the service:
 
 ```typescript
-// userService.ts — enquanto o backend não existe
+// userService.ts — while the backend does not exist
 import { userServiceMock } from './userService.mock'
 
 export const userService = {
-  // TODO: backend não implementado — substituir quando endpoint estiver pronto
+  // TODO: backend not implemented — replace when endpoint is ready
   list: () => userServiceMock.list(),
 }
 ```
 
-Quando o endpoint estiver pronto, o mock é removido e o arquivo `.mock.ts` é deletado:
+When the endpoint is ready, the mock is removed and the `.mock.ts` file is deleted:
 
 ```typescript
-// userService.ts — backend implementado
+// userService.ts — backend implemented
 import { backendHttpClient } from '@/services/api/backend.httpClient'
 
 export const userService = {
@@ -564,49 +564,49 @@ export const userService = {
 }
 ```
 
-**Regras de mock:**
+**Mock rules:**
 
-- **Separação obrigatória:** lógica de mock nunca entra no arquivo do service real. O arquivo `.mock.ts` é o único lugar onde mocks existem. O service real só delega para ele temporariamente via `import`.
-- Todo uso de mock tem um comentário `// TODO: backend não implementado`
-- Se o endpoint existe, não há justificativa para manter o mock — é débito técnico
-- Quando todos os endpoints de um service estiverem implementados, o arquivo `.mock.ts` é deletado
-- A migração é feita **apenas** no service real — views não mudam
+- **Mandatory separation:** mock logic never goes into the real service file. The `.mock.ts` file is the only place where mocks exist. The real service only delegates to it temporarily via `import`.
+- Every use of a mock has a `// TODO: backend not implemented` comment
+- If the endpoint exists, there is no justification for keeping the mock — it is technical debt
+- When all endpoints of a service are implemented, the `.mock.ts` file is deleted
+- The migration is done **only** in the real service — views do not change
 
-Como complemento, a variável `VITE_USE_MOCKS=true` pode ser usada para tornar o uso de mocks explícito por ambiente — útil para forçar erro em runtime quando um service ainda delega para o mock em um ambiente onde não deveria.
+As a complement, the `VITE_USE_MOCKS=true` variable can be used to make mock usage explicit per environment — useful for forcing a runtime error when a service still delegates to the mock in an environment where it should not.
 
 #### HTTP clients (`services/api/`)
 
-Cada arquivo em `services/api/` é um cliente HTTP dedicado a um backend. Um cliente:
+Each file in `services/api/` is an HTTP client dedicated to a backend. A client:
 
-- Injeta o JWT no header `Authorization` lendo o token diretamente da `authStore` (em memória) — nunca do `localStorage`. O `localStorage` é acessado apenas na `authStore.bootstrap()`.
-- Desembrulha o envelope de resposta da API e lança erro quando a resposta indica falha
-- Chama o handler de 401 registrado pelo router guard (quando aplicável)
+- Injects the JWT in the `Authorization` header by reading the token directly from `authStore` (in memory) — never from `localStorage`. `localStorage` is accessed only in `authStore.bootstrap()`.
+- Unwraps the API response envelope and throws an error when the response indicates failure
+- Calls the 401 handler registered by the router guard (when applicable)
 
-**Envelope padrão de resposta** — este é o modelo base; o documento `30+` do projeto define a estrutura real caso o backend divirja:
+**Default response envelope** — this is the base model; the project's `30+` document defines the actual structure if the backend diverges:
 
 ```typescript
-// sucesso (lista)
+// success (list)
 { data: T[], pagination: { pageSize: number, nextCursor: string | null, hasNext: boolean, ... } }
 
-// sucesso (item único)
+// success (single item)
 { data: T }
 
-// erro
+// error
 { "error": "ENTITY_NOT_FOUND", "message": "Entity abc-123 not found" }
 ```
 
-- `error` — código `UPPER_SNAKE_CASE`, estável e comparável programaticamente. Quando vindo do backend, passa por `t()` para exibir ao usuário.
-- `message` — texto legível por humanos, pode mudar — não usar para lógica.
+- `error` — `UPPER_SNAKE_CASE` code, stable and programmatically comparable. When coming from the backend, it is passed through `t()` to display to the user.
+- `message` — human-readable text, may change — do not use for logic.
 
-O `httpClient` lê a `authStore` diretamente — isso é um acoplamento tolerável sem alternativa viável. Passar o token como parâmetro em cada chamada polui todos os services. O cliente é infraestrutura, não serviço de domínio, e essa é a única exceção à regra de que camadas de infraestrutura não conhecem stores.
+The `httpClient` reads `authStore` directly — this is a tolerable coupling without a viable alternative. Passing the token as a parameter in every call pollutes all services. The client is infrastructure, not a domain service, and this is the only exception to the rule that infrastructure layers do not know stores.
 
-Nenhum arquivo fora de `services/` importa um cliente HTTP diretamente.
+No file outside `services/` imports an HTTP client directly.
 
 #### Store (`stores/`)
 
-Stores Pinia armazenam estado de sessão — dados que precisam estar disponíveis em qualquer view sem prop drilling.
+Pinia stores hold session state — data that needs to be available in any view without prop drilling.
 
-Sempre use o estilo **setup store** (Composition API) no Pinia — nunca o estilo options:
+Always use the **setup store** style (Composition API) in Pinia — never the options style:
 
 ```typescript
 // stores/authStore.ts
@@ -628,54 +628,54 @@ export const useAuthStore = defineStore('auth', () => {
 })
 ```
 
-Exemplos de stores típicas:
+Examples of typical stores:
 
-- `authStore` — token JWT e identificadores da sessão
-- `accountStore` — dados da conta carregada após login
-- `errorStore` — erro crítico atual, usado para redirecionar o usuário a uma view de erro
-- `loadingStore` — estado do overlay global de loading
+- `authStore` — JWT token and session identifiers
+- `accountStore` — account data loaded after login
+- `errorStore` — current critical error, used to redirect the user to an error view
+- `loadingStore` — state of the global loading overlay
 
-> **`errorStore` e `loadingStore` são opcionais.** Existem para projetos que adotam tratativas globais de erro e loading — overlay que bloqueia toda a interface, view de erro centralizada. Nem todo projeto precisa disso. O documento `30+` do projeto deve avaliar se essas stores são necessárias, como são estruturadas e quais componentes as consomem. Sem essa decisão documentada, não as crie por conta própria.
+> **`errorStore` and `loadingStore` are optional.** They exist for projects that adopt global error and loading handling — an overlay that blocks the entire interface, a centralized error view. Not every project needs this. The project's `30+` document must evaluate whether these stores are needed, how they are structured, and which components consume them. Without that documented decision, do not create them on your own.
 
-**Quando usar store:**
+**When to use a store:**
 
-- Dado compartilhado entre views com um único ponto de modificação (ex: nome do usuário — qualquer view lê, só o login altera)
-- Dado de sessão que precisa estar disponível em qualquer ponto do app
+- Data shared between views with a single point of modification (e.g., username — any view reads it, only login changes it)
+- Session data that needs to be available anywhere in the app
 
-**Quando não usar store:**
+**When not to use a store:**
 
-- Dado local da view (loading, erro, valores de formulário) → `ref` local
-- Dado que a view busca para si mesma → `ref` + service
-- Dado passado entre views via navegação → params de rota. Params identificam e orientam — não transportam estado. Passar `id`, `type` ou campos que definem o comportamento da próxima view é correto. Passar um objeto completo de domínio via router state é proibido: some com F5 e cria acoplamento implícito entre views.
+- View-local data (loading, error, form values) → local `ref`
+- Data the view fetches for itself → `ref` + service
+- Data passed between views via navigation → route params. Params identify and orient — they do not transport state. Passing `id`, `type`, or fields that define the behavior of the next view is correct. Passing a complete domain object via router state is prohibited: it disappears on F5 and creates implicit coupling between views.
 
-Regras gerais:
+General rules:
 
-- Cada store usa setup store com `ref` tipados explicitamente
-- Stores não chamam o `httpClient` diretamente — toda comunicação com a API é delegada aos services
-- `localStorage` e `sessionStorage` são acessados exclusivamente por stores
-- Erros que a store não sabe resolver são sempre propagados ao chamador
+- Each store uses setup store with explicitly typed `ref`s
+- Stores do not call `httpClient` directly — all API communication is delegated to services
+- `localStorage` and `sessionStorage` are accessed exclusively by stores
+- Errors that the store does not know how to resolve are always propagated to the caller
 
 #### Composables (`composables/`)
 
-Composables são funções que usam APIs de reatividade do Vue internamente (`ref`, `reactive`, `watch`, etc.). São o lugar para lógica com estado reutilizável entre views ou componentes.
+Composables are functions that use Vue reactivity APIs internally (`ref`, `reactive`, `watch`, etc.). They are the place for reusable stateful logic between views or components.
 
 ```
 composables/
-├── commons/          ← composables genéricos sem domínio específico
+├── commons/          ← generic composables without a specific domain
 │   ├── useAsyncAction.ts
 │   ├── useErrorHandler.ts
 │   └── useReportCriticalError.ts
-└── <domain>/         ← composables específicos de um domínio
+└── <domain>/         ← composables specific to a domain
     └── useUserFilter.ts
 ```
 
-**Quando criar um composable:** quando a mesma lógica com estado aparecer em mais de um lugar. Se a lógica existe em uma view só, fica na view.
+**When to create a composable:** when the same stateful logic appears in more than one place. If the logic only exists in one view, it stays in the view.
 
-**Composables não são `utils/`.** Se a função não usa nenhuma API de reatividade do Vue, é uma função pura e vai para `utils/`.
+**Composables are not `utils/`.** If the function does not use any Vue reactivity API, it is a pure function and goes into `utils/`.
 
 #### Utils (`utils/`)
 
-Utils são funções puras sem reatividade Vue — formatação, validação, parsing, cálculos. Podem ser usadas em qualquer contexto.
+Utils are pure functions without Vue reactivity — formatting, validation, parsing, calculations. They can be used in any context.
 
 ```
 utils/
@@ -687,15 +687,15 @@ utils/
     └── parser.ts
 ```
 
-O subdiretório define o domínio. O arquivo define a operação (`formatter`, `validator`, `parser`, `calculator`). Juntos são auto-explicativos sem repetição.
+The subdirectory defines the domain. The file defines the operation (`formatter`, `validator`, `parser`, `calculator`). Together they are self-explanatory without repetition.
 
-**Se precisar de reatividade Vue dentro, não é util — é composable.**
+**If you need Vue reactivity inside, it is not a util — it is a composable.**
 
 ---
 
-### Roteamento (`router/`)
+### Routing (`router/`)
 
-Use Vue Router. Organize as rotas em dois arquivos separados por nível de acesso:
+Use Vue Router. Organize routes in two separate files by access level:
 
 ```typescript
 // router/public.ts
@@ -757,14 +757,14 @@ router.beforeEach((to) => {
 export default router
 ```
 
-Regras:
+Rules:
 
-- **Nomes de rota em `kebab-case`** — encapsulam a hierarquia de acesso: `private-admin-users`
-- **Lazy loading obrigatório** — toda view usa `() => import(...)`. Nunca import estático em rotas.
-- **Views de erro dentro das rotas públicas** — erros críticos não requerem autenticação
-- O guard global é o único responsável por redirecionar rotas protegidas — nunca verificar autenticação dentro de uma view
-- O guard usa `authStore.getToken()`, não `authStore.token`. Em recarga de página, o token ainda não foi carregado em memória — `getToken()` cai no `localStorage` como fallback. Usar `authStore.token` diretamente causaria redirecionamento incorreto para login antes do bootstrap terminar.
-- Declare meta de rota em `types/router/meta.ts` para que `to.meta.requiresAuth` seja tipado
+- **Route names in `kebab-case`** — they encapsulate the access hierarchy: `private-admin-users`
+- **Lazy loading is mandatory** — every view uses `() => import(...)`. Never use static imports in routes.
+- **Error views inside public routes** — critical errors do not require authentication
+- The global guard is the sole responsible for redirecting protected routes — never check authentication inside a view
+- The guard uses `authStore.getToken()`, not `authStore.token`. On page reload, the token has not yet been loaded into memory — `getToken()` falls back to `localStorage`. Using `authStore.token` directly would cause an incorrect redirect to login before bootstrap finishes.
+- Declare route meta in `types/router/meta.ts` so that `to.meta.requiresAuth` is typed
 
 ```typescript
 // types/router/meta.ts
@@ -781,7 +781,7 @@ declare module 'vue-router' {
 
 ### Config (`config/index.ts`)
 
-Variáveis de ambiente que mudam entre builds ficam em um único arquivo. Nenhum outro arquivo acessa `import.meta.env` diretamente.
+Environment variables that change between builds are kept in a single file. No other file accesses `import.meta.env` directly.
 
 ```typescript
 // src/config/index.ts
@@ -792,50 +792,50 @@ export const SKELETON_COUNT     = Number(import.meta.env.VITE_SKELETON_COUNT ?? 
 export const TOAST_VISIBILITY_MS = Number(import.meta.env.VITE_TOAST_VISIBILITY_MS ?? 30_000)
 ```
 
-Prefixo `VITE_` é obrigatório para que o Vite exponha a variável no cliente.
+The `VITE_` prefix is mandatory for Vite to expose the variable to the client.
 
 ---
 
 ### Types (`types/`)
 
-O padrão é sempre criar tipos em `types/`, com subdiretório por domínio.
+The standard is to always create types in `types/`, with a subdirectory per domain.
 
-**Proibido usar `index.ts` como barrel export em qualquer parte do `src/`.** Essa regra é global — vale para `types/`, `components/`, `composables/`, `services/`, `utils/` e demais diretórios. O caminho do arquivo é informação semântica: `import { User } from '@/types/user/user.model'` diz que é o modelo de domínio. `import { User } from '@/types/user/user.api'` diz que é um tipo de contrato com a API. Um `index.ts` que re-exporta tudo apaga essa informação, dificulta tree-shaking e aumenta o risco de imports circulares.
+**Using `index.ts` as a barrel export anywhere in `src/` is prohibited.** This rule is global — it applies to `types/`, `components/`, `composables/`, `services/`, `utils/`, and other directories. The file path is semantic information: `import { User } from '@/types/user/user.model'` says it is the domain model. `import { User } from '@/types/user/user.api'` says it is an API contract type. An `index.ts` that re-exports everything erases that information, hinders tree-shaking, and increases the risk of circular imports.
 
 ```
 types/
 ├── router/
-│   └── meta.ts            ← declaração de RouteMeta
+│   └── meta.ts            ← RouteMeta declaration
 ├── user/
-│   ├── user.model.ts      ← modelo de domínio (o que o app usa internamente)
-│   └── user.api.ts        ← tipos de request/response da API
+│   ├── user.model.ts      ← domain model (what the app uses internally)
+│   └── user.api.ts        ← API request/response types
 └── event/
     ├── event.model.ts
     └── event.api.ts
 ```
 
-**Tipo local é exceção, não regra.** Use tipo local apenas quando for verdadeiramente interno a um único arquivo e sem utilidade fora dele. Se existe qualquer chance do tipo ser usado em outro arquivo — view, store, service, componente — ele vai para `types/`.
+**Local type is the exception, not the rule.** Use a local type only when it is truly internal to a single file and has no use elsewhere. If there is any chance the type will be used in another file — view, store, service, component — it goes into `types/`.
 
 ---
 
-### Internacionalização (i18n)
+### Internationalization (i18n)
 
-Use `vue-i18n` para suporte a múltiplos idiomas. O idioma atual é armazenado em uma Pinia store — nunca gerenciado apenas localmente.
+Use `vue-i18n` for multi-language support. The current language is stored in a Pinia store — never managed only locally.
 
 ```
 npm install vue-i18n
 ```
 
-**Bootstrap do i18n:**
+**i18n bootstrap:**
 
 ```
 authStore.bootstrap()
-  → languageStore.bootstrap()  ← carrega idioma salvo do localStorage + aplica via i18n
+  → languageStore.bootstrap()  ← loads saved language from localStorage + applies via i18n
   → accountStore.bootstrap()
   → ...
 ```
 
-Organização das chaves por domínio:
+Key organization by domain:
 
 ```json
 {
@@ -853,12 +853,12 @@ Organização das chaves por domínio:
 }
 ```
 
-**Regra obrigatória:** nenhum texto visível ao usuário é hardcoded. Todo string definido no frontend passa por `t()`. Isso inclui: labels, placeholders, títulos de view, textos de botão, mensagens de estado vazio, toasts de feedback.
+**Mandatory rule:** no text visible to the user is hardcoded. Every string defined in the frontend goes through `t()`. This includes: labels, placeholders, view titles, button text, empty state messages, feedback toasts.
 
-**Conteúdo vindo do backend — caso a caso:**
+**Content coming from the backend — case by case:**
 
-- Backend enviou um **código de erro** (ex: `"USER_NOT_FOUND"`) → passar por `t()`, traduzindo o código para uma mensagem legível
-- Backend enviou **dados de domínio** (nome de usuário, título de produto, descrição) → exibir diretamente, sem `t()`. São valores inseridos por usuários, não constantes do sistema — não faz sentido traduzi-los.
+- Backend sent an **error code** (e.g., `"USER_NOT_FOUND"`) → pass through `t()`, translating the code into a readable message
+- Backend sent **domain data** (username, product title, description) → display directly, without `t()`. These are values entered by users, not system constants — translating them makes no sense.
 
 ```vue
 <script setup lang="ts">
@@ -874,61 +874,61 @@ const { t } = useI18n()
 
 ---
 
-## S3 — Implementação
+## S3 — Implementation
 
-> Leia esta seção apenas ao implementar ou dar manutenção em: auth, sessão, bootstrap, fluxo de login, views de erro crítico.
+> Read this section only when implementing or maintaining: auth, session, bootstrap, login flow, critical error views.
 
 ### authStore (`stores/authStore.ts`)
 
-O `authStore` é o repositório da sessão e o orquestrador da autenticação e inicialização das stores.
+`authStore` is the session repository and the orchestrator of authentication and store initialization.
 
-Responsabilidades:
+Responsibilities:
 
-- Guardar e expor o token JWT em memória
-- Implementar `getToken()`: verifica memória primeiro — se não encontrar, busca no `localStorage`, salva em memória e retorna. Se não encontrar em nenhum dos dois, retorna `null`.
-- Implementar `login(credentials)`: chama `authService.login()`, persiste o token no `localStorage` e em memória, retorna sucesso ou propaga a exceção para a view tratar
-- Implementar `bootstrap()`: chama `bootstrap()` em cada store que precisa ser inicializada — chamado pela `PrivatePostLoginLoadingView`
-- Implementar `clearAuth()`: limpa token do `localStorage` e da memória, e aciona `clear()` nas demais stores
+- Store and expose the JWT token in memory
+- Implement `getToken()`: checks memory first — if not found, fetches from `localStorage`, saves to memory and returns. If not found in either, returns `null`.
+- Implement `login(credentials)`: calls `authService.login()`, persists the token in `localStorage` and in memory, returns success or propagates the exception for the view to handle
+- Implement `bootstrap()`: calls `bootstrap()` on each store that needs to be initialized — called by `PrivatePostLoginLoadingView`
+- Implement `clearAuth()`: clears the token from `localStorage` and memory, and triggers `clear()` on other stores
 
-**Fluxo de login:**
+**Login flow:**
 
 ```
-PublicAuthLoginView — usuário submete formulário
+PublicAuthLoginView — user submits the form
   → authStore.login(credentials)
     → authService.login(credentials)
-      → sucesso → token salvo no localStorage e no authStore
-        → authStore retorna sucesso para PublicAuthLoginView
+      → success → token saved in localStorage and authStore
+        → authStore returns success to PublicAuthLoginView
           → router.push({ name: 'private-post-login-loading' })
-            → PrivatePostLoginLoadingView chama authStore.bootstrap()
-              → sucesso → router.push({ name: 'private-home' })
-              → falha UNAUTHORIZED → guard de rota do 401 já limpou a sessão
-                                     e redirecionou para public-auth-login
-              → outra falha → reportCriticalError(err)
-                               → PublicErrorBootstrapView
-      → falha → exceção propagada → PublicAuthLoginView trata (feedback inline)
+            → PrivatePostLoginLoadingView calls authStore.bootstrap()
+              → success → router.push({ name: 'private-home' })
+              → UNAUTHORIZED failure → 401 route guard already cleared the session
+                                       and redirected to public-auth-login
+              → other failure → reportCriticalError(err)
+                                 → PublicErrorBootstrapView
+      → failure → exception propagated → PublicAuthLoginView handles it (inline feedback)
 ```
 
 ---
 
-### Stores de domínio
+### Domain stores
 
-Cada store de domínio (ex: `accountStore`, `personStore`) é autossuficiente na sua inicialização.
+Each domain store (e.g., `accountStore`, `personStore`) is self-contained in its initialization.
 
-Responsabilidades:
+Responsibilities:
 
-- Guardar e expor os dados do seu domínio
-- Implementar `bootstrap()`: chama seu próprio service para buscar e popular os dados
-- Implementar `clear()`: limpa os dados ao fazer logout
+- Store and expose its domain data
+- Implement `bootstrap()`: calls its own service to fetch and populate data
+- Implement `clear()`: clears data on logout
 
 ```typescript
-// padrão de interface para stores inicializáveis
+// standard interface for initializable stores
 interface DomainStore {
   bootstrap(): Promise<void>
   clear(): void
 }
 ```
 
-O `authStore.bootstrap()` conhece quais stores precisam ser inicializadas:
+`authStore.bootstrap()` knows which stores need to be initialized:
 
 ```typescript
 async function bootstrap(): Promise<void> {
@@ -938,70 +938,70 @@ async function bootstrap(): Promise<void> {
 }
 ```
 
-**Regra:** toda store com `bootstrap()` **deve** ser adicionada explicitamente ao `authStore.bootstrap()`. Essa lista é a fonte de verdade das dependências de inicialização do app. Criar uma store com `bootstrap()` sem adicioná-la aqui é um erro — a store começará vazia e a view quebrará silenciosamente.
+**Rule:** every store with `bootstrap()` **must** be explicitly added to `authStore.bootstrap()`. This list is the source of truth for the app's initialization dependencies. Creating a store with `bootstrap()` without adding it here is a bug — the store will start empty and the view will break silently.
 
-O `authStore` conhecer as stores de domínio é um acoplamento intencional e defensivo — torna as dependências de inicialização explícitas e visíveis em um único lugar. A lista é pequena por design: apenas as stores estritamente necessárias para o app funcionar são inicializadas no bootstrap. Stores de domínio que não são críticas na carga inicial não entram aqui.
-
----
-
-### Guards de rota e sessão
-
-O guard global em `router/index.ts` é o único responsável por redirecionar rotas protegidas.
-
-**`authStore.clearAuth()` é chamado em dois contextos:**
-
-- **`httpClient`** — ao receber 401, o cliente chama `authStore.clearAuth()` e o guard redireciona para login
-- **View de logout** — em resposta ao logout explícito do usuário
-
-Nenhum outro service, composable ou view chama `clearAuth()` diretamente.
+`authStore` knowing the domain stores is an intentional and defensive coupling — it makes initialization dependencies explicit and visible in a single place. The list is small by design: only the stores strictly necessary for the app to function are initialized in the bootstrap. Domain stores that are not critical at initial load do not belong here.
 
 ---
 
-### Views de erro
+### Route guards and session
 
-**`PublicErrorBootstrapView`** — exclusiva para falhas no bootstrap da sessão. Exibe o erro e oferece um botão de retry que navega para `PrivatePostLoginLoadingView`.
+The global guard in `router/index.ts` is the sole responsible for redirecting protected routes.
+
+**`authStore.clearAuth()` is called in two contexts:**
+
+- **`httpClient`** — upon receiving a 401, the client calls `authStore.clearAuth()` and the guard redirects to login
+- **Logout view** — in response to the user's explicit logout
+
+No other service, composable, or view calls `clearAuth()` directly.
+
+---
+
+### Error views
+
+**`PublicErrorBootstrapView`** — exclusively for session bootstrap failures. Displays the error and offers a retry button that navigates to `PrivatePostLoginLoadingView`.
 
 ```
-PrivatePostLoginLoadingView chama authStore.bootstrap()
-  → falha → reportCriticalError(err)
-              → errorStore.setError(err)
-              → router.push({ name: 'public-error-bootstrap' })
-                → usuário aciona retry → router.push({ name: 'private-post-login-loading' })
-                  → PrivatePostLoginLoadingView chama authStore.bootstrap() novamente
+PrivatePostLoginLoadingView calls authStore.bootstrap()
+  → failure → reportCriticalError(err)
+               → errorStore.setError(err)
+               → router.push({ name: 'public-error-bootstrap' })
+                 → user triggers retry → router.push({ name: 'private-post-login-loading' })
+                   → PrivatePostLoginLoadingView calls authStore.bootstrap() again
 ```
 
-**`PublicErrorGenericView`** — usada por qualquer view do app para erros inesperados não cobertos por uma view específica. Lê o erro do `errorStore`.
+**`PublicErrorGenericView`** — used by any view in the app for unexpected errors not covered by a specific view. Reads the error from `errorStore`.
 
-**O que toda view de erro deve fazer:**
+**What every error view must do:**
 
-- Informar que o sistema apresentou um erro e orientar o usuário (tentar novamente ou contactar o suporte)
-- Oferecer a ação de recuperação adequada ao contexto
-- Exibir detalhes técnicos do erro (código, timestamp) para apoiar o suporte
-- **Nunca expor dados sensíveis** — token JWT, senhas e dados pessoais nunca aparecem
+- Inform that the system encountered an error and guide the user (try again or contact support)
+- Offer the appropriate recovery action for the context
+- Display technical error details (code, timestamp) to support troubleshooting
+- **Never expose sensitive data** — JWT tokens, passwords, and personal data must never appear
 
 ---
 
-## S4 — Padrões de Interação
+## S4 — Interaction Patterns
 
-> Leia esta seção ao implementar qualquer view com loading, erro, lista vazia ou formulário.
+> Read this section when implementing any view with loading, error, empty list, or form.
 
 ---
 
 ### Loading
 
-O projeto tem dois contextos de loading com comportamentos distintos.
+The project has two loading contexts with distinct behaviors.
 
-O projeto tem dois contextos de loading com ferramentas distintas.
+The project has two loading contexts with distinct tools.
 
-#### Loading local — busca inicial de dados
+#### Local loading — initial data fetch
 
-Use `useAsyncState` do VueUse. Ele expõe `isLoading`, `state` e `error` reativos, elimina o boilerplate de `ref<boolean>` + try/catch e é o padrão para busca de dados na montagem da view.
+Use `useAsyncState` from VueUse. It exposes reactive `isLoading`, `state`, and `error`, eliminates the boilerplate of `ref<boolean>` + try/catch, and is the standard for fetching data when the view mounts.
 
 ```
 npm install @vueuse/core
 ```
 
-**Views com formulário ou conteúdo único** — exibe spinner centralizado enquanto aguarda:
+**Views with a form or single content** — displays a centered spinner while waiting:
 
 ```vue
 <script setup lang="ts">
@@ -1014,77 +1014,77 @@ const { state: user, isLoading } = useAsyncState(() => userService.get(id), null
   <div v-if="isLoading" class="loading-center">
     <Spinner />
   </div>
-  <div v-else><!-- conteúdo --></div>
+  <div v-else><!-- content --></div>
 </template>
 ```
 
-**Views com lista** — exibe `SKELETON_COUNT` repetições do `SkeletonCard`:
+**Views with a list** — displays `SKELETON_COUNT` repetitions of `SkeletonCard`:
 
 ```vue
 <template>
   <template v-if="isLoading">
     <SkeletonCard v-for="i in SKELETON_COUNT" :key="i" />
   </template>
-  <template v-else><!-- lista --></template>
+  <template v-else><!-- list --></template>
 </template>
 ```
 
-`SKELETON_COUNT` vem de `config/index.ts`. `SkeletonCard` fica em `components/atom/feedback/SkeletonCard.vue`.
+`SKELETON_COUNT` comes from `config/index.ts`. `SkeletonCard` lives in `components/atom/feedback/SkeletonCard.vue`.
 
-#### Overlay global — ações do usuário
+#### Global overlay — user actions
 
-Use `useAsyncAction` (composable interno do projeto) quando o usuário executa uma ação que chama a API (salvar, deletar, login, logout, etc.). Bloqueia a interface inteira via `loadingStore`, impedindo duplo-clique e navegação acidental durante a operação.
+Use `useAsyncAction` (internal project composable) when the user executes an action that calls the API (save, delete, login, logout, etc.). It blocks the entire interface via `loadingStore`, preventing double-clicks and accidental navigation during the operation.
 
-`useAsyncState` e `useAsyncAction` **não são intercambiáveis:**
+`useAsyncState` and `useAsyncAction` **are not interchangeable:**
 
-| | `useAsyncState` (VueUse) | `useAsyncAction` (interno) |
+| | `useAsyncState` (VueUse) | `useAsyncAction` (internal) |
 |---|---|---|
-| Quando usar | Busca inicial de dados na montagem | Ação disparada pelo usuário |
-| Overlay global | Não | Sim |
-| Classificação de erro | Não | Sim (rede / negócio / crítico) |
+| When to use | Initial data fetch on mount | Action triggered by the user |
+| Global overlay | No | Yes |
+| Error classification | No | Yes (network / business / critical) |
 
-**Regra:** toda operação `async` disparada pelo usuário usa `useAsyncAction`. Sem exceção.
+**Rule:** every `async` operation triggered by the user uses `useAsyncAction`. No exceptions.
 
-Operações síncronas de store (setters, clearers) **não** usam o overlay — são instantâneas.
-
----
-
-### Erros
-
-#### Filosofia
-
-**A view é quem decide o que fazer com cada erro.** Erros sobem da camada de service até a store, e da store até a view — nenhuma camada intermediária silencia erros que não são de sua responsabilidade.
-
-Na view, a decisão segue uma hierarquia simples:
-
-1. **Erro de domínio reconhecido** — a view conhece o código do erro e sabe exatamente como reagir: mostrar mensagem inline em um campo, exibir toast específico, redirecionar para outra rota. A view trata e sinaliza que o erro foi tratado.
-2. **Erro genérico** — rede, timeout, erro desconhecido, erro de API sem tratamento específico → `useErrorHandler` aplica a tratativa padrão (toast de rede ou redirect crítico).
-
-**Nunca silenciar um erro com `catch (err) {}` vazio.**
+Synchronous store operations (setters, clearers) **do not** use the overlay — they are instantaneous.
 
 ---
 
-#### Tipos de erro e como aparecem
+### Errors
 
-| Tipo | Origem | Apresentação |
+#### Philosophy
+
+**The view is the one that decides what to do with each error.** Errors bubble up from the service layer to the store, and from the store to the view — no intermediate layer silences errors that are not its responsibility.
+
+In the view, the decision follows a simple hierarchy:
+
+1. **Recognized domain error** — the view knows the error code and knows exactly how to react: show an inline message on a field, display a specific toast, redirect to another route. The view handles it and signals that the error was handled.
+2. **Generic error** — network, timeout, unknown error, API error without specific handling → `useErrorHandler` applies the default treatment (network toast or critical redirect).
+
+**Never silence an error with an empty `catch (err) {}`.**
+
+---
+
+#### Error types and how they appear
+
+| Type | Origin | Presentation |
 |---|---|---|
-| Validação de formulário | Frontend (zod/vee-validate) | Inline abaixo do campo |
-| Erro de domínio da API | Backend (`error` code conhecido) | Tratado pela view (inline ou toast específico) |
-| Erro de negócio genérico | Backend (`error` code desconhecido) | Toast via `useErrorHandler` |
-| Sem conexão / timeout | Rede | Toast de rede via `useErrorHandler` |
-| Sessão expirada (401) | `httpClient` | Interceptado pelo cliente — nenhuma view trata 401 diretamente |
-| Erro crítico / inesperado | Qualquer camada | `useReportCriticalError` → `errorStore` + redirect |
+| Form validation | Frontend (zod/vee-validate) | Inline below the field |
+| API domain error | Backend (known `error` code) | Handled by the view (inline or specific toast) |
+| Generic business error | Backend (unknown `error` code) | Toast via `useErrorHandler` |
+| No connection / timeout | Network | Network toast via `useErrorHandler` |
+| Expired session (401) | `httpClient` | Intercepted by the client — no view handles 401 directly |
+| Critical / unexpected error | Any layer | `useReportCriticalError` → `errorStore` + redirect |
 
-O 401 é interceptado pelo `httpClient`:
+The 401 is intercepted by `httpClient`:
 ```
-httpClient recebe 401 → authStore.clearAuth() → router guard redireciona para login
+httpClient receives 401 → authStore.clearAuth() → router guard redirects to login
 ```
 
 ---
 
-#### `showToast` — wrapper obrigatório
+#### `showToast` — mandatory wrapper
 
-Toda chamada ao toast passa por `showToast` em `utils/toast/toast.ts`. Nunca chamar a lib de toast diretamente.
+Every toast call goes through `showToast` in `utils/toast/toast.ts`. Never call the toast lib directly.
 
 ```typescript
 // utils/toast/toast.ts
@@ -1099,7 +1099,7 @@ export function showToast(params: ToastParams): void {
 
 #### `useReportCriticalError`
 
-Salva o erro no `errorStore` e redireciona para a view de erro genérico. Usado como último recurso — quando a view não reconhece o erro.
+Saves the error to `errorStore` and redirects to the generic error view. Used as a last resort — when the view does not recognize the error.
 
 ```typescript
 // composables/commons/useReportCriticalError.ts
@@ -1118,7 +1118,7 @@ export function useReportCriticalError() {
 
 #### `useErrorHandler`
 
-Classifica e apresenta erros genéricos. Fica em `composables/commons/useErrorHandler.ts`. É o handler padrão para tudo que a view não tratou explicitamente.
+Classifies and presents generic errors. Lives in `composables/commons/useErrorHandler.ts`. It is the default handler for everything the view did not explicitly handle.
 
 ```typescript
 // composables/commons/useErrorHandler.ts
@@ -1138,20 +1138,20 @@ export function useErrorHandler() {
 }
 ```
 
-`isNetworkError` fica em `utils/error/classifier.ts` e é a única responsável por distinguir erros de rede de erros de negócio.
+`isNetworkError` lives in `utils/error/classifier.ts` and is the sole responsible for distinguishing network errors from business errors.
 
 ---
 
 #### `useAsyncAction`
 
-Envolve ações disparadas pelo usuário com overlay de loading e tratamento de erro. O `onError` é onde a view trata erros de domínio — retornar `true` sinaliza que o erro foi tratado e o handler genérico não é chamado.
+Wraps user-triggered actions with a loading overlay and error handling. `onError` is where the view handles domain errors — returning `true` signals that the error was handled and the generic handler is not called.
 
 ```typescript
 // composables/commons/useAsyncAction.ts
 interface AsyncActionOptions {
   onSuccess?: () => void
   onError?:   (err: unknown) => boolean | void
-  overlay?:   boolean  // default: true — false para ações em lote
+  overlay?:   boolean  // default: true — false for batch actions
 }
 
 export function useAsyncAction() {
@@ -1174,7 +1174,7 @@ export function useAsyncAction() {
 }
 ```
 
-**Exemplo com erro de domínio:**
+**Example with domain error:**
 
 ```typescript
 const runAction = useAsyncAction()
@@ -1183,10 +1183,10 @@ const onSubmit = handleSubmit(async (values) => {
   await runAction(() => userService.create(values), {
     onError: (err) => {
       if (err instanceof ApiError && err.code === 'EMAIL_IN_USE') {
-        emailError.value = t('user.emailInUse') // inline no campo
-        return true // tratado — não cai no handler genérico
+        emailError.value = t('user.emailInUse') // inline on the field
+        return true // handled — does not fall through to the generic handler
       }
-      // sem retorno → cai em useErrorHandler automaticamente
+      // no return → falls through to useErrorHandler automatically
     },
     onSuccess: () => { showToast({ type: 'success', ... }); router.back() }
   })
@@ -1195,9 +1195,9 @@ const onSubmit = handleSubmit(async (values) => {
 
 ---
 
-#### Erros na busca inicial de dados (`useAsyncState`)
+#### Errors on initial data fetch (`useAsyncState`)
 
-Para a busca inicial de dados, o tratamento de erro vai no callback `onError` do `useAsyncState`:
+For the initial data fetch, error handling goes in the `onError` callback of `useAsyncState`:
 
 ```typescript
 const handleError = useErrorHandler()
@@ -1208,10 +1208,10 @@ const { state: users, isLoading } = useAsyncState(
   {
     onError: (err) => {
       if (err instanceof ApiError && err.code === 'FORBIDDEN') {
-        noAccess.value = true // erro de domínio — view trata diretamente
+        noAccess.value = true // domain error — view handles directly
         return
       }
-      handleError(err) // genérico — delega ao handler padrão
+      handleError(err) // generic — delegates to the default handler
     }
   }
 )
@@ -1219,9 +1219,9 @@ const { state: users, isLoading } = useAsyncState(
 
 ---
 
-### Estados Vazios
+### Empty States
 
-Quando uma lista não tem itens, o componente `EmptyState` substitui o conteúdo.
+When a list has no items, the `EmptyState` component replaces the content.
 
 ```typescript
 // components/atom/feedback/EmptyState.vue
@@ -1232,23 +1232,23 @@ interface Props {
 }
 ```
 
-- Ícone + mensagem contextual definidos pela view — nunca genérico (`"Nenhum item"`)
-- Centralizado na área de conteúdo
-- Ação opcional — passada apenas quando faz sentido pelo negócio
+- Icon + contextual message defined by the view — never generic (`"No items"`)
+- Centered in the content area
+- Optional action — passed only when it makes sense for the business
 
 ---
 
-### Listas paginadas
+### Paginated lists
 
-O modelo de paginação é sempre por cursor. Qual dos dois casos abaixo usar é ditado pela regra de negócio — não por preferência técnica.
+The pagination model is always cursor-based. Which of the two cases below to use is dictated by the business rule — not by technical preference.
 
 ---
 
-#### Caso 1 — Full scan: carregar tudo, tratar no frontend
+#### Case 1 — Full scan: load everything, handle on the frontend
 
-Usado quando a operação exige acesso ao conjunto completo de dados — ordenação arbitrária, filtros cruzados, seleção múltipla, exportação. O frontend busca todos os registros em lotes via cursor até o fim e aplica ordenação, filtragem e exibição localmente.
+Used when the operation requires access to the complete dataset — arbitrary sorting, cross-filters, multiple selection, export. The frontend fetches all records in batches via cursor until the end and applies sorting, filtering, and display locally.
 
-Exemplos: administrar todos os usuários, gerenciar catálogo de produtos.
+Examples: administering all users, managing a product catalog.
 
 ```typescript
 const items     = ref<Item[]>([])
@@ -1271,17 +1271,17 @@ async function loadAll(): Promise<void> {
 }
 ```
 
-Filtro, ordenação e busca são feitos sobre `items` com `computed()` — sem nova chamada à API.
+Filter, sorting, and search are done over `items` with `computed()` — without a new API call.
 
-> O limite de volume viável para o Caso 1 depende do projeto, da página e da regra de negócio. Quando o volume comprometer a performance do frontend, o filtro deve migrar para o backend — decisão documentada no arquivo `30+` do domínio.
+> The viable volume limit for Case 1 depends on the project, the page, and the business rule. When the volume degrades frontend performance, the filter must migrate to the backend — a decision documented in the domain's `30+` file.
 
 ---
 
-#### Caso 2 — Continuação: carregar sob demanda
+#### Case 2 — Continuation: load on demand
 
-Usado quando os dados têm uma ordem natural (mais recentes, por data de criação) e o usuário avança conforme necessita. O frontend busca o primeiro lote e exibe um botão "Carregar mais" enquanto houver cursor.
+Used when the data has a natural order (most recent, by creation date) and the user advances as needed. The frontend fetches the first batch and displays a "Load more" button while there is a cursor.
 
-Exemplos: listar os 50 eventos mais recentes, mostrar produtos por ordem de criação.
+Examples: listing the 50 most recent events, showing products in order of creation.
 
 ```typescript
 const items       = ref<Item[]>([])
@@ -1322,37 +1322,37 @@ async function loadMore(): Promise<void> {
 </template>
 ```
 
-Scroll infinito não é usado — o usuário controla explicitamente quando buscar mais itens.
+Infinite scroll is not used — the user explicitly controls when to fetch more items.
 
 ---
 
-O tamanho do lote vem de `config/index.ts` (`PAGE_SIZE`).
+The batch size comes from `config/index.ts` (`PAGE_SIZE`).
 
-> Este documento não cobre WebSockets, SSE ou qualquer mecanismo de atualização em tempo real. Projetos que necessitem dessas funcionalidades devem documentá-las em um arquivo `30+`.
+> This document does not cover WebSockets, SSE, or any real-time update mechanism. Projects that require these features must document them in a `30+` file.
 
 ---
 
-### Formulários
+### Forms
 
-#### Stack de validação
+#### Validation stack
 
-- **`vee-validate`** — gerencia valores, erros e estado do formulário
-- **`zod`** — define o schema de validação com tipos TypeScript gerados automaticamente
-- **`@vee-validate/zod`** — integra vee-validate com zod via `toTypedSchema`
+- **`vee-validate`** — manages values, errors, and form state
+- **`zod`** — defines the validation schema with automatically generated TypeScript types
+- **`@vee-validate/zod`** — integrates vee-validate with zod via `toTypedSchema`
 
 ```
 npm install vee-validate zod @vee-validate/zod
 ```
 
-#### Comportamento de validação
+#### Validation behavior
 
-- **onBlur** — ao sair de um campo, valida aquele campo. Campos não tocados não exibem erro.
-- **No submit** — valida todos os campos, incluindo os não tocados.
-- **Botão de submit** — habilitado no estado inicial. Desabilitado quando há erros visíveis.
+- **onBlur** — when leaving a field, validates that field. Untouched fields do not display errors.
+- **On submit** — validates all fields, including untouched ones.
+- **Submit button** — enabled in the initial state. Disabled when there are visible errors.
 
 #### `useFormAction`
 
-Composable que encapsula o ciclo completo de um formulário: validação, check de dirty, overlay de loading e tratamento de erro. Recebe a instância do `useForm` e retorna uma função que cria o handler de submit. Usado em **todos os formulários** — criação e edição.
+Composable that encapsulates the complete form cycle: validation, dirty check, loading overlay, and error handling. Receives the `useForm` instance and returns a function that creates the submit handler. Used in **all forms** — creation and editing.
 
 ```typescript
 // composables/commons/useFormAction.ts
@@ -1369,7 +1369,7 @@ export function useFormAction<T extends Record<string, unknown>>(
       async (data) => {
         errorCount.value = 0
         if (!form.meta.value.dirty) {
-          void router.back()  // nada mudou — comportamento intencional, sem feedback
+          void router.back()  // nothing changed — intentional behavior, no feedback
           return
         }
         await runAction(() => action(data), options)
@@ -1385,13 +1385,13 @@ export function useFormAction<T extends Record<string, unknown>>(
 }
 ```
 
-**Fluxo interno:**
-1. Valida todos os campos ao submit — marca os não tocados com erro se inválidos
-2. Se nada mudou (`dirty = false`) — navega de volta sem chamar a API. Comportamento intencional: nada a salvar, nada a comunicar.
-3. Se inválido 3 vezes seguidas — exibe toast orientando o usuário a verificar os campos (resolve campos fora da área visível)
-4. Executa a ação via `useAsyncAction` — overlay + tratamento de erro
+**Internal flow:**
+1. Validates all fields on submit — marks untouched ones with an error if invalid
+2. If nothing changed (`dirty = false`) — navigates back without calling the API. Intentional behavior: nothing to save, nothing to communicate.
+3. If invalid 3 times in a row — shows a toast guiding the user to check the fields (resolves fields outside the visible area)
+4. Executes the action via `useAsyncAction` — overlay + error handling
 
-#### Formulário de criação
+#### Creation form
 
 ```vue
 <script setup lang="ts">
@@ -1429,9 +1429,9 @@ const handleSave = runFormAction(async (values) => {
 </template>
 ```
 
-#### Formulário de edição — pré-população
+#### Edit form — pre-population
 
-Em formulários de edição, os dados são buscados via `useAsyncState` e o formulário é populado com `resetForm` quando chegam. O `dirty` do vee-validate compara com os `initialValues` passados no `resetForm` — se o usuário retornar ao valor original, `dirty` volta a `false`.
+In edit forms, data is fetched via `useAsyncState` and the form is populated with `resetForm` when the data arrives. vee-validate's `dirty` compares against the `initialValues` passed to `resetForm` — if the user returns to the original value, `dirty` goes back to `false`.
 
 ```vue
 <script setup lang="ts">
@@ -1454,8 +1454,8 @@ const { state: user, isLoading } = useAsyncState(
   { onError: (err) => handleError(err) }
 )
 
-// Popula o formulário quando o dado chega — resetForm define os initialValues
-// que o vee-validate usa para calcular dirty
+// Populates the form when data arrives — resetForm sets the initialValues
+// that vee-validate uses to calculate dirty
 watch(user, (val) => {
   if (val) form.resetForm({ values: { name: val.name, email: val.email } })
 }, { immediate: true })
@@ -1470,15 +1470,15 @@ const handleSave = runFormAction(async (values) => {
 </script>
 ```
 
-#### `useAsyncAction` direto na view
+#### `useAsyncAction` directly in the view
 
-Para ações simples disparadas pelo usuário sem formulário e sem confirmação — arquivar, ativar/desativar, reenviar email, sincronizar. O `onError` trata erros de domínio específicos; o handler genérico cobre o restante.
+For simple user-triggered actions without a form and without confirmation — archive, activate/deactivate, resend email, sync. `onError` handles specific domain errors; the generic handler covers the rest.
 
 #### `useDestructiveAction`
 
-Para ações irreversíveis. Exibe dialog de confirmação, aguarda resposta, executa apenas no OK.
+For irreversible actions. Displays a confirmation dialog, waits for the response, executes only on OK.
 
-**Toda ação irreversível usa `useDestructiveAction`.** A exceção é quando um humano expressa que o dialog deve ser removido — documentar com comentário no código.
+**Every irreversible action uses `useDestructiveAction`.** The exception is when a human explicitly states that the dialog should be removed — document with a comment in the code.
 
 ```typescript
 // composables/commons/useDestructiveAction.ts
@@ -1530,14 +1530,14 @@ const handleDelete = (): void => destructiveAction(
 </template>
 ```
 
-> O `ConfirmDialog` referenciado aqui é um componente obrigatório do projeto. Sua interface de props/emits, posicionamento no Atomic Design e relação com a lib de UI devem ser detalhados em um documento complementar numerado `30+`.
+> The `ConfirmDialog` referenced here is a required project component. Its props/emits interface, placement in the Atomic Design hierarchy, and relationship with the UI lib must be detailed in a complementary document numbered `30+`.
 
-#### Separação de handlers e template
+#### Separation of handlers and template
 
-Handlers são definidos como `const` no `<script setup>` — nunca como funções inline no template.
+Handlers are defined as `const` in `<script setup>` — never as inline functions in the template.
 
 ```typescript
-// correct — handler definido antes do template
+// correct — handler defined before the template
 const handleSave = runFormAction(async (data) => {
   await userService.update(id, data)
   showToast({ type: 'success', ... })
@@ -1549,27 +1549,27 @@ const handleSave = runFormAction(async (data) => {
 <!-- correct -->
 <button @click="handleSave">{{ t('action.save') }}</button>
 
-<!-- wrong — lógica inline no template -->
+<!-- wrong — inline logic in the template -->
 <button @click="async () => { await service.update(id, data); router.back() }">Salvar</button>
 ```
 
-Funções inline são permitidas apenas para casos triviais: `@click="router.back()"`.
+Inline functions are allowed only for trivial cases: `@click="router.back()"`.
 
-#### Feedback de sucesso
+#### Success feedback
 
-Toda ação que conclui com sucesso exibe um toast `success` — sem exceção.
+Every action that completes successfully displays a `success` toast — no exceptions.
 
-**Regra de navegação após sucesso:**
+**Navigation rule after success:**
 
-- Formulários (criação e edição) → toast + `router.back()`
-- Ações de propósito único (deletar, confirmar) → toast + `router.back()`
-- Ações em lote (toggles em lista) → toast por ação + debounce para recarregar lista
+- Forms (creation and editing) → toast + `router.back()`
+- Single-purpose actions (delete, confirm) → toast + `router.back()`
+- Batch actions (toggles in a list) → toast per action + debounce to reload the list
 
-#### Ações por item em lista
+#### Per-item actions in a list
 
-Quando cada item de uma lista tem uma ação própria (ex: botão "alterar status"), cada botão precisa de loading e disabled independentes — o overlay global não é usado.
+When each item in a list has its own action (e.g., a "change status" button), each button needs independent loading and disabled states — the global overlay is not used.
 
-O loading por item é rastreado por um `Set` de IDs reativos:
+Per-item loading is tracked by a reactive `Set` of IDs:
 
 ```typescript
 const loadingIds = ref(new Set<string>())
@@ -1581,7 +1581,7 @@ function handleToggleStatus(item: Item): void {
       loadingIds.value.add(item.id)
       const updated = await itemService.toggleStatus(item.id)
       const index = items.value.findIndex(i => i.id === item.id)
-      if (index !== -1) items.value[index] = updated  // atualiza in-place
+      if (index !== -1) items.value[index] = updated  // updates in-place
     },
     {
       overlay: false,
@@ -1604,24 +1604,24 @@ function handleToggleStatus(item: Item): void {
 </template>
 ```
 
-**Duas estratégias para atualizar a lista após a ação:**
+**Two strategies for updating the list after the action:**
 
-- **Atualização in-place** — o service retorna o item atualizado e a view substitui diretamente no array. UX mais fluida, sem re-fetch.
-- **Refresh com debounce** — após cada ação, agenda um reload da lista com `useDebounceFn` do VueUse. Mais simples, garante consistência com o backend. Preferível quando o servidor não retorna o item atualizado.
+- **In-place update** — the service returns the updated item and the view replaces it directly in the array. Smoother UX, no re-fetch.
+- **Refresh with debounce** — after each action, schedules a list reload with `useDebounceFn` from VueUse. Simpler, guarantees consistency with the backend. Preferable when the server does not return the updated item.
 
-A escolha depende do que o endpoint retorna e da regra de negócio — definida no `30+` do domínio.
+The choice depends on what the endpoint returns and the business rule — defined in the domain's `30+` file.
 
-#### Quando usar cada composable de ação
+#### When to use each action composable
 
-| Composable | Quando usar |
+| Composable | When to use |
 |---|---|
-| `useFormAction` | Todo formulário — criação e edição |
-| `useAsyncAction` | Ações sem formulário e sem confirmação (arquivar, ativar/desativar, reenviar) |
-| `useDestructiveAction` | Ações irreversíveis que precisam de confirmação (deletar, cancelar) |
+| `useFormAction` | Every form — creation and editing |
+| `useAsyncAction` | Actions without a form and without confirmation (archive, activate/deactivate, resend) |
+| `useDestructiveAction` | Irreversible actions that need confirmation (delete, cancel) |
 
-#### Campos obrigatórios
+#### Required fields
 
-Indicados com asterisco após o label: `Nome *`. Uma legenda discreta no topo do formulário explica o asterisco — uma vez, não em cada campo.
+Indicated with an asterisk after the label: `Name *`. A subtle note at the top of the form explains the asterisk — once, not on every field.
 
 ```vue
 <p class="required-note">{{ t('form.requiredFieldsNote') }}</p>

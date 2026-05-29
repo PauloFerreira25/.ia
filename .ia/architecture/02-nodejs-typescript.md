@@ -13,7 +13,7 @@ description: "Read before writing or modifying any Node.js + TypeScript code. St
 
 | Category | Section | When to consult |
 |---|---|---|
-| **Project setup** | [Filosofia](#filosofia) | Always — foundational principles |
+| **Project setup** | [Philosophy](#philosophy) | Always — foundational principles |
 | | [ES Modules](#es-modules) | When configuring modules or writing imports |
 | | [tsconfig.json](#tsconfigjson) | When setting up TypeScript |
 | | [Path aliases](#path-aliases) | When using `@src` imports |
@@ -41,23 +41,23 @@ description: "Read before writing or modifying any Node.js + TypeScript code. St
 
 ---
 
-## Filosofia
+## Philosophy
 
-Estas decisões guiam todas as escolhas de arquitetura no projeto:
+These decisions guide every architectural choice in the project:
 
-**Produção primeiro.** Toda decisão é tomada pensando em produção. Conforto de desenvolvimento é secundário.
+**Production first.** Every decision is made with production in mind. Development convenience is secondary.
 
-**Consistência elimina decisão.** Quando o custo de decidir caso a caso é maior do que aplicar uniformemente, a regra vira absoluta. Logs em toda função é um exemplo: decidir onde logar e onde não logar custa mais do que logar em tudo.
+**Consistency eliminates decisions.** When the cost of deciding case by case is higher than applying uniformly, the rule becomes absolute. Logging in every function is one example: deciding where to log and where not to log costs more than logging everywhere.
 
-**Explícito sobre implícito.** Tipos declarados, interfaces nomeadas, config validada no startup. Nada depende de inferência silenciosa ou convenção não escrita.
+**Explicit over implicit.** Declared types, named interfaces, config validated at startup. Nothing depends on silent inference or unwritten convention.
 
-**Real sobre mockado.** Testes usam infraestrutura real. Mock só quando impossível subir o serviço.
+**Real over mocked.** Tests use real infrastructure. Mock only when it is impossible to run the service.
 
-**Nível mais alto possível.** Testa no ponto mais próximo da fronteira do sistema. Um teste de handler cobre handler, service e repository ao mesmo tempo.
+**Highest level possible.** Test at the point closest to the system boundary. A handler test covers handler, service, and repository all at once.
 
-**Reutilizar antes de criar.** Antes de escrever qualquer coisa, verificar se já existe no projeto ou em dependência instalada.
+**Reuse before creating.** Before writing anything, verify it does not already exist in the project or in an installed dependency.
 
-**Separação de responsabilidade.** Cada camada tem uma responsabilidade e não ultrapassa sua fronteira. O handler adapta HTTP para domínio. O service não sabe que existe HTTP. O repository não tem lógica de negócio.
+**Separation of concerns.** Each layer has one responsibility and does not cross its boundary. The handler adapts HTTP to the domain. The service does not know HTTP exists. The repository has no business logic.
 
 ---
 
@@ -312,7 +312,7 @@ Key rules enforced:
 - `consistent-type-imports` — forces `import type` for type-only imports, keeping runtime imports explicit
 - `explicit-function-return-type` — all functions must declare their return type
 - `explicit-module-boundary-types` — all exported functions must have typed parameters and return type
-- `no-unused-vars` — variáveis e parâmetros não utilizados são erro. Prefixar com `_` para indicar intencionalmente ignorado (ex: `_req`)
+- `no-unused-vars` — unused variables and parameters are errors. Prefix with `_` to mark as intentionally ignored (e.g. `_req`)
 - `import/order` — imports grouped and ordered: Node built-ins → external packages → internal modules
 
 Never use the legacy `.eslintrc` format.
@@ -400,7 +400,7 @@ export default defineConfig({
 })
 ```
 
-**Filosofia de testes:**
+**Testing philosophy:**
 
 - Use real infrastructure — never mock databases, queues, or external services unless it is impossible to run them
 - Test at the highest level possible — a handler test covers handler, service, and repository together
@@ -1045,6 +1045,22 @@ src/
 Exception: tooling config files in the project root follow each tool's own convention and are never renamed (`tsconfig.json`, `eslint.config.js`, `package.json`, `vitest.config.ts`).
 
 Never use `kebab-case`, `snake_case`, or `PascalCase` for file or directory names.
+
+### Long and compound names
+
+When a directory or file name is derived from a multi-word concept — including external service names, domain names, or business labels — apply the same `camelCase` rule with no exceptions.
+
+Remove spaces, dots, and any characters that are not valid identifiers. Capitalize each word after the first:
+
+```
+"chamada backend site uol.com.br"  →  backendCallUolComBr
+"order item sync"                  →  orderItemSync
+"api.payments.v2"                  →  apiPaymentsV2
+```
+
+Domain names with dots (`uol.com.br`, `api.example.com`) have each segment treated as a separate word — the dots are dropped and each segment is capitalized as part of the camelCase sequence.
+
+The Language rule applies here too: translate the concept to English before applying camelCase. Do not preserve the original language in the identifier.
 
 ### Domain vocabulary
 
