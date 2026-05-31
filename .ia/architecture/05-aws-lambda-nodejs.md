@@ -15,10 +15,43 @@ description: "Read before writing or modifying any AWS Lambda + Node.js code. St
 
 | Section | When to consult |
 |---|---|
+| [Error handling](#error-handling) | When writing or modifying the Lambda handler wrapper |
 | [Path Parameters](#path-parameters) | When defining or naming API Gateway path parameters in CDK routes or handlers |
 | [npm packages](#npm-packages) | When installing dependencies |
 | [ESLint](#eslint) | When resolving ESLint errors |
 | [Language](#language) | Always — naming identifiers |
+
+---
+
+## Error handling
+
+In Lambda there is no framework error handler — the handler function is the boundary. Any error that is not caught and logged before returning a response is lost forever. CloudWatch will only show the response envelope, not the original error.
+
+Every Lambda handler must wrap its execution in a `try/catch` and delegate error handling to a shared `handleError` utility. Never write the error-to-response logic inline in the handler.
+
+```typescript
+export const handler = async (event: APIGatewayProxyEventV2): Promise<APIGatewayProxyResultV2> => {
+  log.debug({ ... }, 'handler')
+  try {
+    // ...
+    return formatResponse(event, 200, { data: result })
+  } catch (error) {
+    return handleError(event, error)
+  }
+}
+```
+
+`handleError` is defined in the project's shared utilities package and is responsible for:
+- Logging every unhandled error with `log.error({ error }, 'unhandledError')` before returning the response
+- Mapping `AppError` subclasses to their HTTP status codes and codes
+- Returning a generic 500 envelope for everything else — never exposing the original error message or stack trace
+
+Each project specializes `handleError` in its shared utils package. The exact implementation is project-specific, but the contract is always the same: the caller passes `(event, error)` and receives a formatted API Gateway response.
+
+Rules:
+- Always use `handleError` in the catch block — never write the error mapping inline.
+- Never return a 500 response without going through `handleError`. A 500 with no log is undebuggable.
+- Never expose the original error message or stack trace in the response body.
 
 ---
 

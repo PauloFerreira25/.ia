@@ -979,6 +979,50 @@ async function find(params: FindEntityParams): Promise<Entity[]> {
 
 The second argument is always the exact function name — this makes `grep` on logs reliable.
 
+### Logs for significant outcomes
+
+Beyond the entry log, add a debug log when a function produces a meaningful result — a record created, a value calculated, a decision made. The goal is that reading the logs alone should tell the story of what happened inside the function.
+
+```typescript
+async function createOrder(params: CreateOrderParams): Promise<Order> {
+  log.debug({ params }, 'createOrder')
+  const order = await orderRepository.save({ order: build(params) })
+  log.debug({ order }, 'createOrder:created')
+  return order
+}
+
+async function calculateDiscount(params: CalculateDiscountParams): Promise<number> {
+  log.debug({ params }, 'calculateDiscount')
+  const discount = applyRules(params)
+  log.debug({ discount }, 'calculateDiscount:result')
+  return discount
+}
+```
+
+Convention for the outcome log message: `<functionName>:<outcome>` — this keeps outcome logs groupable by function when grepping.
+
+What warrants an outcome log:
+- A record was persisted (created, updated, deleted)
+- A value was computed (discount, fee, score, total)
+- A decision was made based on data (eligibility check, rule evaluation)
+- An external call succeeded and returned a result
+
+What does not warrant an outcome log:
+- A simple lookup that either returns a value or null — the next log in the caller covers it
+- Transformations with no side effects that are obvious from the entry log
+
+Log the full result object — never cherry-pick individual fields. If the result has 10 fields and you log only `id`, the other 9 fields require a second investigation to surface. Hiding fields in logs is not a feature; it is friction added to every future debugging session.
+
+```typescript
+// wrong — forces a second lookup to see anything beyond the id
+log.debug({ orderId: order.id }, 'createOrder:created')
+
+// correct — everything is available immediately
+log.debug({ order }, 'createOrder:created')
+```
+
+The only exception: when the result contains sensitive data (passwords, tokens, personal data), omit those specific fields and log the rest. Never omit fields for any other reason.
+
 When parameters contain sensitive data (passwords, tokens, personal data), log an explicit object omitting the sensitive fields. Never suppress the log — only omit the fields:
 
 ```typescript
@@ -994,6 +1038,35 @@ async function authenticate(params: AuthParams): Promise<Session> {
 ```
 
 Never log the full `params` object when it contains sensitive fields.
+
+### Never collapse functions to avoid logs
+
+Every function boundary exists for architectural reasons — handler, service, repository each have a distinct responsibility. Never merge two functions into one to avoid writing the first-line debug log. The log is not a burden; it is the point. Without it, there is no way to know where execution stopped when an error occurs.
+
+```typescript
+// wrong — handler and service logic merged into one function "to avoid extra logs"
+export async function handler(event: APIGatewayEvent): Promise<void> {
+  log.debug({ event }, 'handler')
+  const entity = await db.get(event.pathParameters?.id) // service + repository logic inline
+  if (!entity) throw new NotFoundError('ENTITY_NOT_FOUND', `Entity not found`)
+  return entity
+}
+
+// correct — each function has its own log and its own responsibility
+export async function handler(event: APIGatewayEvent): Promise<void> {
+  log.debug({ event }, 'handler')
+  return entityService.findById({ id: requirePathParam(event, 'entityId') })
+}
+
+async function findById(params: IdParams): Promise<Entity> {
+  log.debug({ params }, 'findById')
+  const entity = await entityRepository.findById(params)
+  if (!entity) throw new NotFoundError('ENTITY_NOT_FOUND', `Entity ${params.id} not found`)
+  return entity
+}
+```
+
+If a function feels too small to warrant its own log, that is not a reason to merge it. It is a correctly sized function.
 
 ---
 
