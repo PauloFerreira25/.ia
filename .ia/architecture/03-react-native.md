@@ -218,39 +218,136 @@ Lint errors are not warnings — they are errors. CI rejects code with lint erro
 
 ### Logs
 
-All project logs go through the `logger` — never use `console.log`, `console.info`, or `console.warn` directly in the code. Direct console logs have no level control, no namespace, and cannot be turned off in production.
+All project logs go through the `logger` — never use `console.log`, `console.info`, or `console.warn` directly in the code. Direct console logs have no level control, no namespace, and cannot be silenced in production.
 
-The recommended default library is `react-native-logs` because it supports levels, configurable transports by environment, and namespace loggers. If the project uses another solution, document it in the project standards file (`30+`).
+The library is `react-native-logs`. It supports levels, configurable transports, and namespace loggers.
+
+#### Setup
+
+`logger` is an object with mutable namespace properties — not a frozen constant. This is intentional: when the log level changes at runtime, `recreateLogger` replaces the internal instance and reassigns every namespace. Any call to `logger.service.debug(...)` always reads the current namespace at call time.
 
 ```typescript
 // utils/logger/logger.ts
-import { logger as createLogger } from "react-native-logs";
+import { createLogger, consoleTransport } from 'react-native-logs'
 
-const log = createLogger({
-  levels: { debug: 0, info: 1, warn: 2, error: 3 },
-  transport: __DEV__ ? consoleTransport : silentTransport,
-});
+export type LogLevel = 'debug' | 'info' | 'warn' | 'error'
+
+export const DEFAULT_LEVEL: LogLevel = __DEV__ ? 'debug' : 'error'
+
+function build(level: LogLevel) {
+  return createLogger({
+    levels: { debug: 0, info: 1, warn: 2, error: 3 },
+    transport: consoleTransport,
+    severity: level,
+  })
+}
+
+let _log = build(DEFAULT_LEVEL)
 
 export const logger = {
-  auth: log.extend("AUTH"),
-  service: log.extend("SERVICE"),
-  store: log.extend("STORE"),
-};
+  auth:    _log.extend('AUTH'),
+  service: _log.extend('SERVICE'),
+  store:   _log.extend('STORE'),
+  screen:  _log.extend('SCREEN'),
+  hook:    _log.extend('HOOK'),
+}
+
+export function recreateLogger(level: LogLevel): void {
+  _log = build(level)
+  logger.auth    = _log.extend('AUTH')
+  logger.service = _log.extend('SERVICE')
+  logger.store   = _log.extend('STORE')
+  logger.screen  = _log.extend('SCREEN')
+  logger.hook    = _log.extend('HOOK')
+}
 ```
+
+Never destructure the logger at import time — always call `logger.service.debug(...)` directly, never `const { service } = logger`. Destructuring captures a reference to the old namespace and will not reflect level changes after `recreateLogger` is called.
+
+#### loggerStore
+
+The log level lives in a Zustand store. Changing the level calls `recreateLogger` and updates the store state. No persistence — the level resets to the build default on every app launch.
 
 ```typescript
-// usage — in any project file
-logger.auth.debug("bootstrap started");
-logger.service.error("failed to fetch products", error);
+// store/loggerStore.ts
+import { create } from 'zustand'
+
+import { recreateLogger, DEFAULT_LEVEL, type LogLevel } from '@/utils/logger/logger'
+
+interface LoggerStore {
+  level: LogLevel
+  setLevel: (level: LogLevel) => void
+}
+
+export const useLoggerStore = create<LoggerStore>((set) => ({
+  level: DEFAULT_LEVEL,
+  setLevel: (level) => {
+    recreateLogger(level)
+    set({ level })
+  },
+}))
 ```
 
-`__DEV__` is a React Native global variable — `true` in development, `false` in production. Use it to configure the logger transport by environment.
+`DEFAULT_LEVEL` is imported from `logger.ts` — the single place where `__DEV__` is checked for logging purposes.
 
-Rules:
+#### Settings screen
 
-- Never commit `console.log` — the linter must block it
-- `logger.error` and `logger.warn` can be active in production (sent to monitoring service)
-- `logger.debug` and `logger.info` are silenced in production by default
+Any authenticated user can change the log level via a settings screen. The screen reads `level` from `useLoggerStore` and calls `setLevel`. No access control, no feature flag — this is local state on the user's device, not a server-side concern.
+
+This solves the production debugging scenario: open the settings screen, switch to `debug`, reproduce the issue, read the logs in the browser console or device logger.
+
+#### Rules
+
+**First line of every function with side effects is a debug log — no exceptions.**
+
+Deciding where to log and where not to log costs more than logging everywhere. A missing log is always a blind spot. The rule is absolute — no function with side effects is exempt.
+
+Functions with side effects: service methods, store actions, custom hooks, screen handlers (`handleSave`, `handleDelete`, etc.). Pure React components that only render JSX are excluded — they re-render frequently and produce noise, not signal.
+
+| Layer | Namespace |
+|---|---|
+| Service methods | `logger.service` |
+| Store actions | `logger.store` |
+| Custom hooks | `logger.hook` |
+| Screen handlers | `logger.screen` |
+| Auth flow | `logger.auth` |
+
+```typescript
+// service method
+async update(params: UpdatePersonParams): Promise<void> {
+  logger.service.debug({ params }, 'update')
+  // ...
+}
+
+// store action
+setAccount(account: Account): void {
+  logger.store.debug({ account }, 'setAccount')
+  // ...
+}
+
+// screen handler
+const { id } = useRoute<RouteProp<...>>().params
+const handleSave = runFormAction(async (data) => {
+  logger.screen.debug({ id, data }, 'handleSave')
+  // ...
+})
+```
+
+**The second argument is always the exact function or method name — never a description, never a variation.** This makes `grep 'update'` on logs find exactly that function with no ambiguity.
+
+**Log the full parameter object. Never pre-filter fields anticipating what might be useful later — that creates the blind spots the logging system exists to eliminate. The log level controls what is visible in each environment, not the choice of fields.**
+
+The only exception is genuinely sensitive data (passwords, tokens). These fields are explicitly omitted — the log still exists, only the sensitive field is absent.
+
+```typescript
+async login(params: LoginParams): Promise<void> {
+  logger.auth.debug({ email: params.email }, 'login') // omits password — sensitive field
+}
+```
+
+Suppressing the log entirely is never acceptable as a workaround for sensitive data.
+
+**Never use `console.log`, `console.warn`, or `console.error` directly.** The linter must block it. Every log goes through `logger`.
 
 ---
 
