@@ -41,3 +41,4 @@ Claude will consult the index at the start of relevant tasks and read only the r
 ## Adding project-specific rules
 
 Rules numbered 30+ are reserved for project-specific conventions. Add them directly in your project's `.ia/` directory and register them in `index.md`.
+
