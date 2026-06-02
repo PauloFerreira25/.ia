@@ -1577,15 +1577,12 @@ export function useFormAction<T>(form: UseFormReturn<T>) {
   const navigation = useNavigation()
   const { t } = useTranslation()
   const errorCount = useRef(0)
+  const { isDirty } = form.formState  // lido no render para o RHF subscrever a propriedade
 
   return (action: (data: T) => Promise<void>, options?: AsyncActionOptions) => {
-    return form.handleSubmit(
+    const submitHandler = form.handleSubmit(
       async (data) => {
         errorCount.current = 0
-        if (!form.formState.isDirty) {
-          navigation.goBack()  // nothing changed — pretend it saved, without calling the API
-          return
-        }
         await runAction(() => action(data), options)
       },
       () => {
@@ -1596,15 +1593,28 @@ export function useFormAction<T>(form: UseFormReturn<T>) {
         }
       }
     )
+    return (e?: unknown) => {
+      if (!isDirty) {
+        navigation.goBack()  // nothing changed — go back without validating or calling the API
+        return
+      }
+      return submitHandler(e as any)
+    }
   }
 }
 ```
 
 **Internal flow:**
-1. Validates all fields — marks untouched ones with error if invalid
-2. If invalid 3 times in a row — displays a toast guiding the user to check the fields (resolves fields outside the visible area on small screens)
-3. If nothing changed (`isDirty = false`) — navigates back without calling the API
+1. If nothing changed (`isDirty = false`) — navigates back immediately, **before** validation runs
+2. Validates all fields — marks untouched ones with error if invalid
+3. If invalid 3 times in a row — displays a toast guiding the user to check the fields (resolves fields outside the visible area on small screens)
 4. Executes the action via `useAsyncAction` — overlay + error handling
+
+**Why `isDirty` is checked before `handleSubmit`:** In edit mode, forms often have optional fields (e.g. `createAccount`, `email`, `password`) that are only relevant for create mode and are reset to `""` or `undefined` for editing. Running Zod validation on these before the dirty check would produce spurious errors. Checking `isDirty` first avoids validation entirely when nothing changed.
+
+**`isDirty` subscription:** `{ isDirty }` must be destructured from `form.formState` in the hook body (render phase), not inside the callback. RHF uses a Proxy that only tracks properties read during render — reading inside a callback bypasses this and always returns `false`.
+
+**`setValue` + `isDirty`:** `setValue` does not mark the form as dirty by default. Calls triggered by user interaction (e.g. selecting from a list, RadioButton) must pass `{ shouldDirty: true }`. Calls that load initial data (e.g. in a `useEffect` for edit mode) must NOT pass `shouldDirty: true`.
 
 #### `useDestructiveAction`
 
