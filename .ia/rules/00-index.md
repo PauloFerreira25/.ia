@@ -7,14 +7,14 @@ Read a rule file when the current task matches its scope description.
 | # | Name | Scope | File |
 |---|------|-------|------|
 | 01 | Rules Format | Creating or updating rules | [01-rules-format.md](01-rules-format.md) |
-| 02 | Unknown Problems | When you don't know how to solve a problem | [02-unknown-problems.md](02-unknown-problems.md) |
-| 03 | No Rollback | When context changes from A to B | [03-no-rollback.md](03-no-rollback.md) |
-| 04 | Language | Communication and rule writing language | [04-language.md](04-language.md) |
-| 05 | Code Style | Writing any code | [05-code-style.md](05-code-style.md) |
-| 06 | Minimal Execution | Scoping, reading context, and executing any task | [06-minimal-execution.md](06-minimal-execution.md) |
+| 02 | Unknown Problems | When stuck, looping, or facing an unsolvable problem | [02-unknown-problems.md](02-unknown-problems.md) |
+| 03 | No Rollback | When the user changes direction or replaces a solution | [03-no-rollback.md](03-no-rollback.md) |
+| 04 | Language | Code identifiers, rule writing, and communication language | [04-language.md](04-language.md) |
+| 05 | Code Style | Writing any code or output | [05-code-style.md](05-code-style.md) |
+| 06 | Minimal Execution | Scoping, reading context, diagnosing problems, and executing any task | [06-minimal-execution.md](06-minimal-execution.md) |
 | 08 | Copy and Duplicate | When copying or duplicating code or files | [08-copy-duplicate.md](08-copy-duplicate.md) |
-| 09 | Operation Order | When moving, renaming, or restructuring | [09-operation-order.md](09-operation-order.md) |
-| 10 | Verified Information | When providing any information or answer | [10-verified-information.md](10-verified-information.md) |
+| 09 | Operation Order | When moving, renaming, or restructuring files or code | [09-operation-order.md](09-operation-order.md) |
+| 10 | Verified Information | When stating facts, capabilities, or technical behavior | [10-verified-information.md](10-verified-information.md) |
 | 11 | Concurrency Examples | When showing that tasks will run in parallel | [11-concurrency-examples.md](11-concurrency-examples.md) |
 | 12 | Document Answers | When the human answers a question from an AI agent | [12-document-answers.md](12-document-answers.md) |
 | 13 | Task Spec Directory | When generating any AI task spec | [13-task-spec-directory.md](13-task-spec-directory.md) |

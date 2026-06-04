@@ -19,5 +19,11 @@ When working with related code:
 - Understand the full picture before acting
 - Never work in isolation when connections exist
 
+When diagnosing a problem reported by the user:
+- Identify which files govern the reported behavior
+- Read those files before stating any cause
+- Never conclude "the problem is X" based on the symptom alone
+- "Not deployed" and "never written" look identical as symptoms — only reading the code distinguishes them
+
 When copying or duplicating:
 - See `08-copy-duplicate.md`
