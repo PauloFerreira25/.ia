@@ -114,6 +114,44 @@ The project UI follows the **Atomic Design** model. Each piece of interface belo
 - **Library components can be used at any level.** Atoms, molecules, and organisms can directly use components from installed libraries.
 - **Only create a component if it is a specialization.** If the library already provides a `Button`, use it directly. Create an `atom/buttons/BtnConfirm` only if there is project-specific behavior or style that justifies the specialization. Purposeless wrappers are prohibited.
 
+#### Screen-private components
+
+When a screen's UI is too complex for a single file but its sub-components are not reusable outside that screen, co-locate them with the screen in a `components/` subfolder.
+
+This applies when the screen has distinct, large visual sections — wizard steps, inline tabs, collapsible panels — where each section justifies its own file but none of them will appear in another screen.
+
+**When the screen fits in a single file, keep it as a single file.** Introduce the folder only when private sub-components are needed.
+
+**Simple case — single file, no private components:**
+
+```
+screens/private/orders/
+└── OrderFormScreen.tsx
+```
+
+**Complex case — screen with private sub-components (e.g., a multi-step checkout):**
+
+```
+screens/private/orders/
+└── checkout/                          ← folder named after the flow, not the screen
+    ├── CheckoutScreen.tsx             ← the screen file keeps the Screen suffix
+    ├── checkoutSchema.ts              ← Zod schema + form type shared with the steps
+    └── components/
+        ├── StepCart.tsx
+        ├── StepAddress.tsx
+        └── StepPayment.tsx
+```
+
+The screen file (`CheckoutScreen.tsx`) lives inside the folder alongside its private components. The folder name is the contextual name of the flow in `camelCase` — not the screen name, and without the `Screen` suffix.
+
+**Rules:**
+
+- Screen-private components follow the same contract as all components below Screen: no stores, no services, no navigation calls — these are received as props (`onNext`, `onSubmit`, `onBack`, etc.)
+- Types shared between the screen and its private components live in a co-located file (e.g., `checkoutSchema.ts`) — not in `src/types/`, which is for types used across multiple features
+- Files inside `components/` use `PascalCase.tsx` with descriptive names and do **not** end in `Screen` — they are not navigable screens
+- These components are **not** organisms: do not place them in `src/components/organism/`. Organisms are reusable across screens; screen-private components are not
+- Do not place screen-private components in `src/components/` — that directory is exclusively for reusable pieces
+
 ---
 
 ### Type safety
