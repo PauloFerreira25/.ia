@@ -39,3 +39,4 @@ Files numbered 01-29 are base conventions. Files numbered 30+ are project-specif
 |---|------|-------|------|
 | 04 | DynamoDB | Before creating or modifying DynamoDB tables, GSIs or queries | [04-dynamo.md](04-dynamo.md) |
 | 05 | AWS Lambda + Node.js | Before writing or modifying any AWS Lambda + Node.js code | [05-aws-lambda-nodejs.md](05-aws-lambda-nodejs.md) |
+| 09 | Lambda Domain Architecture | Before creating a new Lambda project with multiple domains, or evaluating a refactor | [09-lambda-domain-architecture.md](09-lambda-domain-architecture.md) |
