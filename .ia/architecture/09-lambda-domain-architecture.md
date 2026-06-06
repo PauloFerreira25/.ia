@@ -178,6 +178,7 @@ Cada pacote é auto-responsável — compila independente para `dist/` e declara
   "extends": "../tsconfig.base.json",
   "compilerOptions": {
     "composite": true,
+    "rootDir": "src",
     "outDir": "dist"
   },
   "include": ["src"],
