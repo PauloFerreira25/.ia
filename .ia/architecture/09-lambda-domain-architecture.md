@@ -81,15 +81,15 @@ app/                                ← workspace root (package.json com workspa
     http/
       v1/
         products/
-          GET/                      ← @<project>/lambda-http-v1-products-get
+          get/                      ← @<project>/lambda-http-v1-products-get
             src/handler.ts
             package.json
-          POST/                     ← @<project>/lambda-http-v1-products-post
+          post/                     ← @<project>/lambda-http-v1-products-post
           _id/                      ← _id = path param {id}
-            GET/                    ← @<project>/lambda-http-v1-products-id-get
-            DELETE/                 ← @<project>/lambda-http-v1-products-id-delete
+            get/                    ← @<project>/lambda-http-v1-products-id-get
+            delete/                 ← @<project>/lambda-http-v1-products-id-delete
         checkout/
-          POST/                     ← @<project>/lambda-http-v1-checkout-post
+          post/                     ← @<project>/lambda-http-v1-checkout-post
     sqs/
       order/
         process/                    ← @<project>/lambda-sqs-order-process
@@ -116,11 +116,11 @@ O `app/package.json` lista cada pacote explicitamente — sem glob. Isso evita q
     "shared/infra-dynamo",
     "shared/error",
     "shared/util",
-    "lambdas/http/v1/products/GET",
-    "lambdas/http/v1/products/POST",
-    "lambdas/http/v1/products/_id/GET",
-    "lambdas/http/v1/products/_id/DELETE",
-    "lambdas/http/v1/checkout/POST",
+    "lambdas/http/v1/products/get",
+    "lambdas/http/v1/products/post",
+    "lambdas/http/v1/products/_id/get",
+    "lambdas/http/v1/products/_id/delete",
+    "lambdas/http/v1/checkout/post",
     "lambdas/sqs/order/process",
     "lambdas/cron/order/expire"
   ]
@@ -200,11 +200,11 @@ Cada pacote é auto-responsável — compila independente para `dist/` e declara
     { "path": "./product" },
     { "path": "./order" },
     { "path": "./checkout" },
-    { "path": "./lambdas/http/v1/products/GET" },
-    { "path": "./lambdas/http/v1/products/POST" },
-    { "path": "./lambdas/http/v1/products/_id/GET" },
-    { "path": "./lambdas/http/v1/products/_id/DELETE" },
-    { "path": "./lambdas/http/v1/checkout/POST" },
+    { "path": "./lambdas/http/v1/products/get" },
+    { "path": "./lambdas/http/v1/products/post" },
+    { "path": "./lambdas/http/v1/products/_id/get" },
+    { "path": "./lambdas/http/v1/products/_id/delete" },
+    { "path": "./lambdas/http/v1/checkout/post" },
     { "path": "./lambdas/sqs/order/process" },
     { "path": "./lambdas/cron/order/expire" }
   ]
@@ -389,7 +389,7 @@ A Lambda é o principal lugar onde infraestrutura e domínio se conectam. A exce
 - Como o CDK referencia o `entry` de cada Lambda (path relativo vs `require.resolve`) está em aberto — validar no spike
 
 ```typescript
-// lambdas/http/v1/checkout/POST/src/handler.ts
+// lambdas/http/v1/checkout/post/src/handler.ts
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb'
 import { DynamoDBDocumentClient, TransactWriteCommand } from '@aws-sdk/lib-dynamodb'
 import type { TransactWriteItem } from '@aws-sdk/lib-dynamodb'
@@ -633,7 +633,7 @@ new Function(this, 'CheckoutPost', {
   runtime: Runtime.NODEJS_24_X,
   handler: 'index.handler',
   code: Code.fromAsset(
-    path.join(__dirname, '../app/lambdas/http/v1/checkout/POST/dist')
+    path.join(__dirname, '../app/lambdas/http/v1/checkout/post/dist')
   ),
   environment: {
     NODE_OPTIONS: '--enable-source-maps',

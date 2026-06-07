@@ -5,6 +5,21 @@ description: "Read before writing or modifying any AWS Lambda + Node.js code. St
 
 # AWS Lambda + Node.js Architecture
 
+> **DESCONTINUADO.** Este documento cobre padrões do modelo anterior (camada primeiro). Para novos projetos, use [09-lambda-domain-architecture.md](./09-lambda-domain-architecture.md), que define o modelo atual (domínio primeiro).
+>
+> Alterações em projetos existentes devem, no mínimo, migrar a estrutura de diretórios das Lambdas para o modelo do documento 09:
+>
+> ```
+> lambdas/http/v1/products/get/       ← @<project>/lambda-http-v1-products-get
+> lambdas/http/v1/products/post/      ← @<project>/lambda-http-v1-products-post
+> lambdas/http/v1/products/_id/get/   ← @<project>/lambda-http-v1-products-id-get
+> lambdas/http/v1/products/_id/delete/ ← @<project>/lambda-http-v1-products-id-delete
+> ```
+>
+> O conteúdo abaixo continua válido como referência para projetos já existentes no modelo antigo.
+
+---
+
 > This document is specific to this project's Lambda implementation patterns. It covers conventions, rules, and pitfalls that apply to every Lambda function in this repository.
 >
 > For general Node.js + TypeScript rules, see [02-nodejs-typescript.md](./02-nodejs-typescript.md). This document only covers what is specific to Lambda.
